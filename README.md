@@ -4,12 +4,11 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + FIRST MVP VERTICAL.**
-> Tasks 01–02 established the repository, the module boundary, the shared
-> infrastructure and fail-closed diagnostics. Task
-> `AFFILIATE-OS-MVP-VERTICAL-003` implements the **first real business
-> capability**: Module 05 — Opportunity Evaluation & Decision. Every other
-> module still reports `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
+> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP.**
+> Tasks 01–03 established the foundation and deterministic Opportunity Engine.
+> TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
+> retrieve, and list workspace-owned opportunities. Every other module remains
+> `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
 
 ---
 
@@ -45,10 +44,10 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Reproduces the published specification card (§38) exactly: score **84**,
       `STRONG`, `TEST_NOW`
 - [x] Same input ⇒ same decision (determinism verified over HTTP)
-- [x] Persistence-dependent routes fail closed with `501 NOT_IMPLEMENTED`
-      instead of faking an empty collection
-- [x] 190 passing tests (unit + integration + regression + architecture)
-- [x] Implementation plan in [`docs/tasks/task-03-mvp-vertical-plan.md`](docs/tasks/task-03-mvp-vertical-plan.md)
+- [x] TASK 04 PostgreSQL lifecycle adapter and migration `0002`
+- [x] Workspace-scoped create/retrieve/list with signed tenant claims
+- [x] Fail-closed behavior when PostgreSQL or auth configuration is unavailable
+- [x] TASK 04 plan in [`docs/tasks/task-04-persistence-lifecycle-plan.md`](docs/tasks/task-04-persistence-lifecycle-plan.md)
 
 ## Completed — TASK 01/02 (foundation)
 
@@ -71,7 +70,7 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Persistence of opportunity evaluations (blocked by CONFLICT-01/06)
+- [ ] Live PostgreSQL migration/production verification when credentials are available
 - [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
 - [ ] Identity / authentication / tenancy logic (Module 15)
@@ -96,8 +95,9 @@ smallest viable vertical and did not expand scope:
 | `POST` | `/api/v1/affiliate/opportunities/evaluate`      | Evaluate one candidate → decision card. Body `{ "candidate": {...} }`. | none¹ |
 | `POST` | `/api/v1/affiliate/opportunities/rank`          | Rank a batch (1–100) → TOP-N shortlist. Body `{ "candidates": [...], "shortlist_size": N }`. | none¹ |
 | `GET`  | `/api/v1/affiliate/opportunities/scoring-model` | Disclose weights, bands, decision ladder, angles, determinism.         | none¹ |
-| `GET`  | `/api/v1/affiliate/opportunities`               | `501 NOT_IMPLEMENTED` — requires persistence (CONFLICT-06).            | n/a   |
-| `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | `501 NOT_IMPLEMENTED` — requires persistence (CONFLICT-06).            | n/a   |
+| `POST` | `/api/v1/affiliate/opportunities`               | Evaluate and persist one opportunity; returns `201`.                   | bearer JWT |
+| `GET`  | `/api/v1/affiliate/opportunities?limit=N`       | List workspace opportunities; default 20, maximum 100.                 | bearer JWT |
+| `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | Retrieve one workspace opportunity by stable candidate reference.      | bearer JWT |
 
 ¹ These routes read and write **no tenant-owned data**: every input arrives in
 the request and nothing is persisted, so there is no resource to own and no
@@ -174,12 +174,11 @@ Stack traces and internal causes are never present in a response body.
 - **Migrations:** forward-only, one transaction each, recorded in
   `public.schema_migrations` with a SHA-256 checksum. Editing an applied
   migration fails the runner instead of drifting silently.
-- **Tables:** none yet. DOC 21 §180+ table DDL is applied by the data-model task,
-  before any seed runs (`202.1 — SEED EXECUTION PREREQUISITES`).
-- **TASK 03 added no migration**, because the first MVP vertical is a pure
-  stateless computation. The persistence seam exists as an application port
-  (`OpportunityEvaluationRecorder`) with no adapter wired, and
-  persistence-dependent routes answer `501`. Rationale: CONFLICT-06.
+- **Tables:** migration `0002` adds `module_05.opportunities`, preserving validated
+  input, complete deterministic evaluation, decision metadata, lifecycle state,
+  model versions, workspace ownership, and timestamps.
+- **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
+  unavailable configuration fails closed and is never replaced by D1/SQLite.
 
 ### Tenancy model (preserved, not yet implemented)
 
@@ -288,9 +287,10 @@ runtime). Never commit either file. Production refuses to boot without
 | No stack traces in responses   | Implemented                                        |
 | Secure response headers        | Implemented                                        |
 | Trace-header injection defense | Implemented — malformed ids rejected               |
-| Authentication                 | **PENDING** — Module 15 task                       |
+| Persistent-route authentication| Implemented — minimum HS256 signed tenant claims  |
+| Full identity ecosystem        | **PENDING** — Module 15 task                       |
 | Authorization / policy engine  | **PENDING** — Module 16 task                       |
-| Tenant isolation enforcement   | **PENDING** — model preserved, not yet enforced    |
+| Tenant isolation enforcement   | Implemented for Module 05 repository queries       |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -308,4 +308,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-02 (TASK 03)
+- **Last updated:** 2026-09-02 (TASK 04)

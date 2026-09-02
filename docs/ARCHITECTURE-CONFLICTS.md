@@ -131,11 +131,11 @@ happen here.
 
 ---
 
-## CONFLICT-06 — Module 05 MVP vertical is stateless because persistence is still blocked
+## CONFLICT-06 — Module 05 MVP persistence lifecycle
 
 Task: `AFFILIATE-OS-MVP-VERTICAL-003`
 
-**Status: OPEN (inherited from CONFLICT-01 / CONFLICT-05), contained by design.**
+**Status: PARTIALLY RESOLVED BY TASK 04 — implementation complete; live database verification remains blocked by CONFLICT-05.**
 
 **Locked requirement**
 - DOC 24 §314 / Task 01 §11: the production database is PostgreSQL; SQLite,
@@ -175,9 +175,14 @@ there is no resource ownership to check and no authentication boundary was
 fabricated here. Module 15 (Identity/Tenancy) remains unimplemented and **no
 new production secret was introduced**.
 
-**What still has to be decided**
+**TASK 04 update**
 
-Module 15 (identity/tenancy) plus a reachable PostgreSQL path (Hyperdrive or an
-HTTP driver, per CONFLICT-01) are **hard prerequisites** before the `501`
-routes may be implemented. The fail-closed `501` guarantees no unauthenticated
-tenant-data path can be created by accident in the meantime.
+- Added forward-only migration `0002` and a `PostgresOpportunityRepository`.
+- Added workspace-scoped create, retrieve, and list use cases/routes.
+- Persistent routes require verified HS256 bearer claims containing organization,
+  workspace, and user identifiers. This is the minimum authorization boundary,
+  not a replacement for the future Module 15/16 ecosystem.
+- The runtime adapter is configured only by `DATABASE_URL`; no D1/KV/SQLite
+  fallback exists. Missing configuration still fails closed.
+- The sandbox had no PostgreSQL credentials, so migration execution and live
+  database E2E verification remain honestly unverified under CONFLICT-05.

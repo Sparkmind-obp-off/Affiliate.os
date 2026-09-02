@@ -267,7 +267,7 @@ describe('persistence-dependent routes fail closed (CONFLICT-01)', () => {
     expect(body.success).toBe(false)
     expect(body.error?.code).toBe('NOT_IMPLEMENTED')
     expect(body.error?.retryable).toBe(false)
-    expect(body.error?.message).toMatch(/persistence/i)
+    expect(body.error?.message).toMatch(/persistent opportunities|configuration/i)
   })
 
   it('GET /opportunities/:ref answers 501 NOT_IMPLEMENTED', async () => {

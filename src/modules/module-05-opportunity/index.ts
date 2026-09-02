@@ -36,6 +36,17 @@ export {
 } from './application/evaluate-opportunity.js'
 
 export {
+  executeCreateOpportunity,
+  executeGetOpportunity,
+  executeListOpportunities,
+  parseOpportunityListLimit,
+  DEFAULT_OPPORTUNITY_LIST_LIMIT,
+  MAX_OPPORTUNITY_LIST_LIMIT,
+  opportunityModelVersions,
+  type OpportunityLifecycleDeps,
+} from './application/opportunity-lifecycle.js'
+
+export {
   MAX_BATCH_SIZE,
   candidateSchema,
   evaluateRequestSchema,
@@ -44,11 +55,23 @@ export {
   type RankRequest,
 } from './application/schemas.js'
 
-export type {
-  Clock,
-  OpportunityEvaluationRecorder,
-  OpportunityReadRepository,
+export {
+  OPPORTUNITY_STATUSES,
+  type Clock,
+  type CreateOpportunityRecord,
+  type OpportunityEvaluationRecorder,
+  type OpportunityRepository,
+  type OpportunityStatus,
+  type OpportunityTenantContext,
+  type StoredOpportunity,
 } from './application/ports.js'
+
+export {
+  PostgresOpportunityRepository,
+  mapOpportunityRow,
+  type PostgresQueryExecutor,
+  type QueryResult,
+} from './infrastructure/persistence/postgres-opportunity-repository.js'
 
 /** Domain contract — value objects and result shapes other modules may read. */
 export {

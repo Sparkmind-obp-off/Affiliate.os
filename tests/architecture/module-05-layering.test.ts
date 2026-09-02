@@ -121,28 +121,28 @@ describe('module-05: dependency direction (DOC 24 §328)', () => {
       )
       // The controller must reach the domain only for serialization-level data.
       const domainImports = importsOf(file.source).filter((s) => s.includes('/domain/'))
-      expect(
-        domainImports,
-        `${file.path} imports domain internals beyond the disclosed model`,
-      ).toEqual(['../../domain/model-descriptor.js'])
+      const allowed = file.path.endsWith('opportunity-routes.ts')
+        ? ['../../domain/model-descriptor.js']
+        : []
+      expect(domainImports, `${file.path} imports domain internals beyond the disclosed model`).toEqual(
+        allowed,
+      )
     }
   })
 
-  it('no persistence adapter is registered while CONFLICT-01 is open', async () => {
+  it('isolates PostgreSQL in the infrastructure layer without forbidden fallback stores', async () => {
     const infrastructure = await filesIn('infrastructure')
-    const violations: string[] = []
+    const forbidden: string[] = []
     for (const file of infrastructure) {
       for (const specifier of importsOf(file.source)) {
-        // A forbidden fallback store would show up here first.
-        if (/^(pg|better-sqlite3|sqlite3|lowdb|@libsql)/.test(specifier)) {
-          violations.push(`${file.path} → ${specifier}`)
+        if (/^(better-sqlite3|sqlite3|lowdb|@libsql)/.test(specifier)) {
+          forbidden.push(`${file.path} → ${specifier}`)
         }
       }
-      expect(file.source, `${file.path} declares a D1/KV binding`).not.toMatch(
-        /D1Database|KVNamespace/,
-      )
+      expect(file.source, `${file.path} declares a D1/KV binding`).not.toMatch(/D1Database|KVNamespace/)
     }
-    expect(violations, `unexpected persistence driver:\n${violations.join('\n')}`).toEqual([])
+    expect(forbidden).toEqual([])
+    expect(infrastructure.some((file) => importsOf(file.source).includes('pg'))).toBe(true)
   })
 })
 

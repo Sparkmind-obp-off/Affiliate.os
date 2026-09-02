@@ -48,7 +48,8 @@ Requires `DATABASE_URL` to point at a PostgreSQL instance.
 
 | File                              | Scope                            | Status |
 | --------------------------------- | -------------------------------- | ------ |
-| `0001_extensions_and_schemas.sql` | `pgcrypto` + module schemas only | ready  |
+| `0001_extensions_and_schemas.sql` | `pgcrypto` + module schemas | ready |
+| `0002_module_05_opportunity_lifecycle.sql` | minimum persistent Module 05 opportunity lifecycle | ready |
 
-Table DDL from DOC 21 §180+ is **not** in this repository yet — it belongs to
-the dedicated data-model task.
+Migration `0002` is intentionally limited to the Task 04 vertical. Remaining
+DOC 21 table DDL is outside this task.

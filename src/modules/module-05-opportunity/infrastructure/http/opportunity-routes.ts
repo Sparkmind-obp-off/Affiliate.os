@@ -18,7 +18,7 @@
  * nothing and answer 200, per the command form allowed by DOC 22 §216.
  */
 
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { AppError } from '../../../../shared/errors/app-error.js'
 import { successEnvelope } from '../../../../shared/http/envelope.js'
 import type { AppEnv } from '../../../../app/types.js'
@@ -26,9 +26,18 @@ import {
   executeEvaluateOpportunity,
   executeRankOpportunities,
 } from '../../application/evaluate-opportunity.js'
+import {
+  executeCreateOpportunity,
+  executeGetOpportunity,
+  executeListOpportunities,
+  parseOpportunityListLimit,
+} from '../../application/opportunity-lifecycle.js'
+import type { OpportunityRepository } from '../../application/ports.js'
 import { MAX_BATCH_SIZE } from '../../application/schemas.js'
 import { describeScoringModel } from '../../domain/model-descriptor.js'
+import { createPostgresOpportunityRepository } from '../persistence/postgres-client.js'
 import { MODULE_ID } from '../../module-meta.js'
+import { authenticateOpportunityRequest } from './opportunity-auth.js'
 
 /** Read a JSON body without leaking parser internals (DOC 22 §223). */
 async function readJsonBody(raw: Request): Promise<unknown> {
@@ -113,41 +122,59 @@ opportunityRoutes.post('/opportunities/rank', async (c) => {
   )
 })
 
-/**
- * Stored-opportunity collection.
- *
- * HONESTY RULE (same rule the health endpoint follows): a capability that
- * requires persistence is reported as NOT_IMPLEMENTED, never faked with an
- * empty list. An empty `200 []` would be indistinguishable from "you have no
- * opportunities" and would hide the fact that nothing is being stored.
- * See docs/ARCHITECTURE-CONFLICTS.md CONFLICT-01 / CONFLICT-06.
- */
-const persistenceUnavailable = (): never => {
-  throw AppError.notImplemented(
-    'Stored opportunities require the PostgreSQL persistence layer, which is not implemented yet (see CONFLICT-01). Evaluation is available at POST /api/v1/affiliate/opportunities/evaluate.',
-  )
+/** Resolve persistence only at the infrastructure edge. */
+function resolveRepository(c: Context<AppEnv>): OpportunityRepository {
+  const injected = (c.env as unknown as { OPPORTUNITY_REPOSITORY?: OpportunityRepository })
+    .OPPORTUNITY_REPOSITORY
+  if (injected) return injected
+  const config = c.get('config')
+  if (!config.databaseUrl) {
+    throw AppError.notImplemented('Persistent opportunities require PostgreSQL configuration')
+  }
+  return createPostgresOpportunityRepository(config.databaseUrl, config.databaseSsl)
 }
 
-opportunityRoutes.get('/opportunities', () => persistenceUnavailable())
+async function authenticate(c: Context<AppEnv>) {
+  return authenticateOpportunityRequest(c.req.header('authorization'), c.get('config').authSecret)
+}
 
-/**
- * Sub-paths that are COMMANDS, not resource identifiers.
- *
- * A candidate reference is allowed to look like a word (`^[A-Za-z0-9_.:-]+$`),
- * so `GET /opportunities/evaluate` would otherwise be captured by the
- * `:candidateRef` route below and answered with `501 NOT_IMPLEMENTED`. That
- * would be a misleading diagnosis: the caller used the wrong method on an
- * existing command endpoint, and nothing about persistence is involved.
- * These names are therefore reserved and answer the canonical 404.
- */
+opportunityRoutes.post('/opportunities', async (c) => {
+  const ctx = c.get('ctx')
+  const tenant = await authenticate(c)
+  const repository = resolveRepository(c)
+  const payload = await readJsonBody(c.req.raw)
+  const opportunity = await executeCreateOpportunity(payload, tenant.workspaceId, { repository })
+  return c.json(
+    successEnvelope({ opportunity }, { requestId: ctx.requestId, correlationId: ctx.correlationId }),
+    201,
+  )
+})
+
+opportunityRoutes.get('/opportunities', async (c) => {
+  const ctx = c.get('ctx')
+  const tenant = await authenticate(c)
+  const repository = resolveRepository(c)
+  const limit = parseOpportunityListLimit(c.req.query('limit'))
+  const opportunities = await executeListOpportunities(tenant.workspaceId, limit, repository)
+  return c.json(
+    successEnvelope(
+      { opportunities, count: opportunities.length },
+      { requestId: ctx.requestId, correlationId: ctx.correlationId },
+    ),
+  )
+})
+
 const RESERVED_SUBPATHS = new Set(['evaluate', 'rank', 'scoring-model'])
 
-opportunityRoutes.get('/opportunities/:candidateRef', (c) => {
+opportunityRoutes.get('/opportunities/:candidateRef', async (c) => {
   const ref = c.req.param('candidateRef')
-  if (RESERVED_SUBPATHS.has(ref)) {
-    throw AppError.notFound('Endpoint not found')
-  }
-  return persistenceUnavailable()
+  if (RESERVED_SUBPATHS.has(ref)) throw AppError.notFound('Endpoint not found')
+  const ctx = c.get('ctx')
+  const tenant = await authenticate(c)
+  const opportunity = await executeGetOpportunity(ref, tenant.workspaceId, resolveRepository(c))
+  return c.json(
+    successEnvelope({ opportunity }, { requestId: ctx.requestId, correlationId: ctx.correlationId }),
+  )
 })
 
 /** Batch limit is part of the published contract, so expose it. */
