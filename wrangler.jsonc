@@ -1,0 +1,14 @@
+{
+  // Affiliate OS — Cloudflare Pages configuration.
+  //
+  // NOTE (architecture): DOC 24 baseline mandates PostgreSQL as the production
+  // database. PostgreSQL is NOT a Cloudflare binding — it is reached over TCP
+  // from the Worker (Hyperdrive / serverless Postgres HTTP driver).
+  // Therefore NO d1_databases / kv_namespaces binding is declared here.
+  // See docs/ARCHITECTURE-CONFLICTS.md (CONFLICT-01).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "affiliate-os",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": "./dist"
+}

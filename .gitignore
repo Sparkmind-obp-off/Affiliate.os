@@ -1,0 +1,61 @@
+# ── Dependencies ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Build output ───────────────────────────────────────────────
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ── Cloudflare / Wrangler ──────────────────────────────────────
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# ── SECRETS — NEVER COMMIT ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+secrets.json
+credentials.json
+service-account*.json
+.npmrc
+.netrc
+
+# ── Logs / runtime ─────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pids/
+*.pid
+*.pid.lock
+.pm2/
+
+# ── Test / coverage ────────────────────────────────────────────
+coverage/
+.nyc_output/
+test-results/
+
+# ── OS / editor ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ── Archives / backups ─────────────────────────────────────────
+*.tar.gz
+*.zip
+*.bak
+*.backup
