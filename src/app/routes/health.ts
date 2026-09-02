@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { successEnvelope } from '../../shared/http/envelope.js'
+import type { NodeEnvSource } from '../../shared/config/env.js'
 import type { AppEnv } from '../types.js'
 
 /**
@@ -9,6 +10,12 @@ import type { AppEnv } from '../types.js'
  * dependency was actually probed. Because the database connectivity layer is
  * NOT implemented in Task 01, DATABASE_HEALTH reports `not_configured` or
  * `not_checked` — never `healthy`.
+ *
+ * The same honesty rule applies to the environment (Task 02): the report says
+ * WHERE the environment value came from (`declared` vs the local-development
+ * `default`) and whether diagnostics are exposed, so an operator can tell an
+ * intentionally-development runtime apart from a deployment that simply never
+ * declared NODE_ENV. No secret or configuration value is ever reported.
  */
 
 export type ComponentStatus =
@@ -24,6 +31,10 @@ export interface HealthReport {
     status: ComponentStatus
     app: string
     environment: string
+    /** `declared` = runtime provided NODE_ENV; `default` = fallback applied. */
+    environment_source: NodeEnvSource
+    /** Whether internal error diagnostics may reach clients. */
+    diagnostics_exposed: boolean
     version: string
   }
   database_health: {
@@ -45,6 +56,8 @@ export const APP_VERSION = '0.1.0'
 export function buildHealthReport(input: {
   appName: string
   environment: string
+  environmentSource: NodeEnvSource
+  diagnosticsExposed: boolean
   databaseConfigured: boolean
   now: Date
 }): HealthReport {
@@ -55,6 +68,8 @@ export function buildHealthReport(input: {
       status: 'healthy',
       app: input.appName,
       environment: input.environment,
+      environment_source: input.environmentSource,
+      diagnostics_exposed: input.diagnosticsExposed,
       version: APP_VERSION,
     },
     database_health: {
@@ -83,6 +98,8 @@ healthRoutes.get('/', (c) => {
   const report = buildHealthReport({
     appName: config.appName,
     environment: config.nodeEnv,
+    environmentSource: config.nodeEnvSource,
+    diagnosticsExposed: config.exposeDiagnostics,
     databaseConfigured: config.databaseUrl !== null,
     now: new Date(),
   })

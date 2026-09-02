@@ -14,6 +14,18 @@ import { z } from 'zod'
 export const NODE_ENVS = ['development', 'test', 'staging', 'production'] as const
 export type NodeEnv = (typeof NODE_ENVS)[number]
 
+/**
+ * Environments in which internal diagnostics may be returned to the caller.
+ *
+ * FAIL-CLOSED RULE (Task 02): diagnostics are exposed only when the runtime
+ * environment is EXPLICITLY declared as one of these. An undeclared /
+ * unrecognized environment is treated as untrusted, because a deployed runtime
+ * that forgot to declare `NODE_ENV` must never be mistaken for a developer
+ * laptop. `default('development')` is a convenience for local work — it is NOT
+ * evidence that the process is running locally.
+ */
+export const DIAGNOSTIC_ENVS: readonly NodeEnv[] = ['development', 'test']
+
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const
 
 const envSchema = z.object({
@@ -31,9 +43,23 @@ const envSchema = z.object({
 })
 
 export type RawEnv = Record<string, string | undefined>
+
+/**
+ * How `nodeEnv` was resolved.
+ *  - `declared`: the runtime explicitly provided a valid NODE_ENV;
+ *  - `default`:  nothing was provided and the local-development default applied.
+ */
+export type NodeEnvSource = 'declared' | 'default'
+
 export type AppConfig = Readonly<{
   nodeEnv: NodeEnv
+  nodeEnvSource: NodeEnvSource
   isProduction: boolean
+  /**
+   * Whether internal diagnostics (error details, causes) may be returned to
+   * the caller. TRUE only for an explicitly declared development/test runtime.
+   */
+  exposeDiagnostics: boolean
   appName: string
   appUrl: string
   apiUrl: string
@@ -68,7 +94,9 @@ export function loadConfig(raw: RawEnv): AppConfig {
   }
 
   const value = parsed.data
+  const nodeEnvSource: NodeEnvSource = raw.NODE_ENV ? 'declared' : 'default'
   const isProduction = value.NODE_ENV === 'production'
+  const exposeDiagnostics = nodeEnvSource === 'declared' && DIAGNOSTIC_ENVS.includes(value.NODE_ENV)
   const issues: string[] = []
 
   if (value.DATABASE_URL && !isPostgresUrl(value.DATABASE_URL)) {
@@ -85,7 +113,9 @@ export function loadConfig(raw: RawEnv): AppConfig {
 
   return Object.freeze({
     nodeEnv: value.NODE_ENV,
+    nodeEnvSource,
     isProduction,
+    exposeDiagnostics,
     appName: value.APP_NAME,
     appUrl: value.APP_URL,
     apiUrl: value.API_URL,

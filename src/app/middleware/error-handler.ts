@@ -11,12 +11,19 @@ import type { AppEnv } from '../types.js'
  *  - a machine-readable error code always present;
  *  - stack traces / internal causes NEVER present in the response body
  *    (they are logged server-side instead).
+ *
+ * FAIL-CLOSED EXPOSURE (Task 02 §6): diagnostics are gated on
+ * `config.exposeDiagnostics`, which is true only for an EXPLICITLY declared
+ * development/test runtime. It is deliberately NOT `!config.isProduction`:
+ * a deployed runtime that never declared NODE_ENV resolves to the
+ * `development` default, and negating `isProduction` would have leaked
+ * internal details there.
  */
 export const errorHandler: ErrorHandler<AppEnv> = (err, c) => {
   const appError = AppError.from(err)
   const { requestId, correlationId } = resolveTrace(c)
   const config = c.get('config')
-  const exposeDetails = config ? !config.isProduction : false
+  const exposeDetails = config?.exposeDiagnostics ?? false
 
   const logger = c.get('logger')
   if (logger) {
