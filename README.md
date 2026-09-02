@@ -140,8 +140,16 @@ scripts/                     # migration runner, module scaffolding
 tests/
 ├── unit/  integration/  architecture/
 docs/
+├── specifications/           # normalized product and architecture source documents
+│   └── README.md              # complete specification catalog
 └── ARCHITECTURE-CONFLICTS.md
 ```
+
+### Specification documents
+
+The normalized source specifications, including DOC 11–26, live in the
+[`docs/specifications`](docs/specifications/README.md) catalog. The original
+ZIP is retained only as an import source; use the catalog for repository links.
 
 ### Module boundary rule
 
