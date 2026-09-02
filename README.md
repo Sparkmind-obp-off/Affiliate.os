@@ -4,10 +4,12 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION ONLY.**
-> Task `AFFILIATE-OS-FOUNDATION-001` establishes the repository, the module
-> boundary, and the shared infrastructure. **No business module is implemented
-> yet.** Every module reports `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
+> **Current state: FOUNDATION + FIRST MVP VERTICAL.**
+> Tasks 01–02 established the repository, the module boundary, the shared
+> infrastructure and fail-closed diagnostics. Task
+> `AFFILIATE-OS-MVP-VERTICAL-003` implements the **first real business
+> capability**: Module 05 — Opportunity Evaluation & Decision. Every other
+> module still reports `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
 
 ---
 
@@ -25,7 +27,30 @@ conflict is recorded in the conflict register rather than silently resolved.
 
 ---
 
-## Completed in this task
+## Completed — TASK 03 (first MVP vertical)
+
+- [x] **Module 05 — Opportunity Engine & Scoring System**, end to end
+  - [x] Domain layer: weighted scoring model (Opportunity Engine §10/§29),
+        risk inversion (§30), classification bands (§31)
+  - [x] Deterministic decision ladder with fixed precedence, rule ids and
+        reason codes (§32–§37, modelled on `14a`)
+  - [x] Priority model — score × confidence × execution feasibility (§58–§63)
+  - [x] Machine-readable explanation (strengths / cautions, §39)
+  - [x] Deterministic recommended-angle catalogue + alternatives (§40–§42)
+  - [x] Batch ranking down to a TOP-N shortlist (§57)
+  - [x] Application layer: use cases + validation schemas +
+        `OpportunityEvaluationRecorder` persistence port (unwired, CONFLICT-06)
+  - [x] HTTP adapter mounted at `/api/v1/affiliate` — canonical envelope and
+        error model preserved
+- [x] Reproduces the published specification card (§38) exactly: score **84**,
+      `STRONG`, `TEST_NOW`
+- [x] Same input ⇒ same decision (determinism verified over HTTP)
+- [x] Persistence-dependent routes fail closed with `501 NOT_IMPLEMENTED`
+      instead of faking an empty collection
+- [x] 190 passing tests (unit + integration + regression + architecture)
+- [x] Implementation plan in [`docs/tasks/task-03-mvp-vertical-plan.md`](docs/tasks/task-03-mvp-vertical-plan.md)
+
+## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
 - [x] Modular monolith directory foundation — 18 modules, each with a public contract
@@ -38,13 +63,17 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Canonical response/error envelope (DOC 22 §222/§223)
 - [x] Structured logging with automatic secret redaction
 - [x] Health endpoint that never falsely reports dependency health
-- [x] 47 passing tests (unit + integration + architecture)
+- [x] Fail-closed diagnostics exposure for undeclared runtimes (Task 02)
 - [x] CI pipeline definition
 
 ## Not implemented yet (by design)
 
-Task 01 §33 explicitly excludes these; each belongs to its own task:
+Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
+smallest viable vertical and did not expand scope:
 
+- [ ] Persistence of opportunity evaluations (blocked by CONFLICT-01/06)
+- [ ] Demand discovery (Module 04) — signals are request input for now
+- [ ] Creator fit, content, distribution, performance, revenue engines
 - [ ] Identity / authentication / tenancy logic (Module 15)
 - [ ] Policy & authorization enforcement (Module 16)
 - [ ] Full database schema — DOC 21 §180+ table DDL
@@ -60,12 +89,50 @@ Task 01 §33 explicitly excludes these; each belongs to its own task:
 
 ## Functional entry URIs
 
-| Method | Path          | Description                                                     | Auth |
-| ------ | ------------- | --------------------------------------------------------------- | ---- |
-| `GET`  | `/health`     | Liveness. Separates application / database / provider health.   | none |
-| `GET`  | `/api/v1`     | API version root; lists routers pending implementation.         | none |
+| Method | Path                                            | Description                                                            | Auth  |
+| ------ | ----------------------------------------------- | ---------------------------------------------------------------------- | ----- |
+| `GET`  | `/health`                                       | Liveness. Separates application / database / provider health.          | none  |
+| `GET`  | `/api/v1`                                       | API version root; lists mounted and pending routers.                   | none  |
+| `POST` | `/api/v1/affiliate/opportunities/evaluate`      | Evaluate one candidate → decision card. Body `{ "candidate": {...} }`. | none¹ |
+| `POST` | `/api/v1/affiliate/opportunities/rank`          | Rank a batch (1–100) → TOP-N shortlist. Body `{ "candidates": [...], "shortlist_size": N }`. | none¹ |
+| `GET`  | `/api/v1/affiliate/opportunities/scoring-model` | Disclose weights, bands, decision ladder, angles, determinism.         | none¹ |
+| `GET`  | `/api/v1/affiliate/opportunities`               | `501 NOT_IMPLEMENTED` — requires persistence (CONFLICT-06).            | n/a   |
+| `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | `501 NOT_IMPLEMENTED` — requires persistence (CONFLICT-06).            | n/a   |
+
+¹ These routes read and write **no tenant-owned data**: every input arrives in
+the request and nothing is persisted, so there is no resource to own and no
+authentication boundary is fabricated. Module 15 becomes a hard prerequisite
+the moment persistence lands — see CONFLICT-06.
 
 All other paths return the canonical `RESOURCE_NOT_FOUND` error envelope.
+
+### Candidate input (evaluate / rank)
+
+```json
+{
+  "candidate": {
+    "candidate_ref": "OPP-00124",
+    "product_name": "Shoe Cleaning Foam",
+    "demand": 82, "product_fit": 94, "creator_fit": 88,
+    "content_potential": 95, "economics": 72, "competition": 64,
+    "momentum": 86, "risk": 18,
+    "confidence": "HIGH",
+    "execution": {
+      "budget_mode": "NORMAL",
+      "sample_required": false,
+      "production_complexity": "LOW",
+      "creator_can_produce_content": true,
+      "product_accessible": true
+    },
+    "content_gap_identified": false,
+    "policy_risk_flagged": false,
+    "missing_signals": []
+  }
+}
+```
+
+Signals are `0–100`. Out-of-range, missing or malformed input returns
+`422 VALIDATION_ERROR` with field-level `details.issues`.
 
 ### Request headers honored
 
@@ -109,6 +176,10 @@ Stack traces and internal causes are never present in a response body.
   migration fails the runner instead of drifting silently.
 - **Tables:** none yet. DOC 21 §180+ table DDL is applied by the data-model task,
   before any seed runs (`202.1 — SEED EXECUTION PREREQUISITES`).
+- **TASK 03 added no migration**, because the first MVP vertical is a pure
+  stateless computation. The persistence seam exists as an application port
+  (`OpportunityEvaluationRecorder`) with no adapter wired, and
+  persistence-dependent routes answer `501`. Rationale: CONFLICT-06.
 
 ### Tenancy model (preserved, not yet implemented)
 
@@ -129,8 +200,14 @@ src/
 │   ├── middleware/          # observability, error handling
 │   └── routes/              # health, api-v1
 ├── modules/                 # 18 locked modules, each with a public contract
-│   └── module-NN-name/
-│       ├── index.ts         # the ONLY legal import surface
+│   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03)
+│   │   ├── domain/          # scoring, decision, priority, angles, explanation
+│   │   ├── application/     # use cases, schemas, ports
+│   │   ├── infrastructure/  # http adapter
+│   │   ├── index.ts         # the ONLY legal import surface
+│   │   └── MODULE.md
+│   └── module-NN-name/      # contract stub (NOT_IMPLEMENTED)
+│       ├── index.ts
 │       └── MODULE.md
 └── shared/                  # primitive infrastructure only
     ├── config/  errors/  http/  logging/
@@ -142,6 +219,7 @@ tests/
 docs/
 ├── specifications/           # normalized product and architecture source documents
 │   └── README.md              # complete specification catalog
+├── tasks/                     # per-task implementation plans
 └── ARCHITECTURE-CONFLICTS.md
 ```
 
@@ -182,6 +260,14 @@ npx wrangler pages dev dist --ip 0.0.0.0 --port 3000
 curl http://localhost:3000/health
 ```
 
+Exercise the MVP vertical:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/affiliate/opportunities/evaluate \
+  -H 'content-type: application/json' \
+  -d '{"candidate":{"candidate_ref":"OPP-00124","product_name":"Shoe Cleaning Foam","demand":82,"product_fit":94,"creator_fit":88,"content_potential":95,"economics":72,"competition":64,"momentum":86,"risk":18,"confidence":"HIGH","execution":{"budget_mode":"NORMAL","sample_required":false,"production_complexity":"LOW","creator_can_produce_content":true,"product_accessible":true},"content_gap_identified":false,"policy_risk_flagged":false,"missing_signals":[]}}'
+```
+
 ### Configuration
 
 Copy `.env.example` to `.env` (Node tooling) and/or `.dev.vars` (Workers
@@ -196,6 +282,8 @@ runtime). Never commit either file. Production refuses to boot without
 | ------------------------------ | -------------------------------------------------- |
 | Secret hygiene                 | Enforced — gitignore + secret-scanning test        |
 | Config validation              | Implemented — fails closed on invalid config       |
+| Input validation (Module 05)   | Implemented — Zod schemas, `422` + field details   |
+| Fail-closed unimplemented data | Implemented — `501`, never a fake empty collection |
 | Secret redaction in logs       | Implemented — structural, not caller-dependent     |
 | No stack traces in responses   | Implemented                                        |
 | Secure response headers        | Implemented                                        |
@@ -216,6 +304,8 @@ implemented, because fake security is worse than none.
 - **Platform:** Cloudflare Pages, via Git integration (Task 01 §28/§29).
   Direct-upload lock-in is deliberately avoided.
 - **Repository:** https://github.com/Sparkmind-obp-off/Affiliate.os
-- **Production URL:** not deployed yet.
+- **Cloudflare Pages project:** `affiliate-os`
+- **Production URL:** https://affiliate-os.pages.dev
+- **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-02
+- **Last updated:** 2026-09-02 (TASK 03)
