@@ -464,4 +464,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 12 code ready for deployment; migration `0009` and authenticated persistence flow require production verification)
+- **Last updated:** 2026-09-03 (TASK 12 deployed to production; migration `0009` remains pending because the encrypted production `DATABASE_URL` is not available to the sandbox migration runner)
