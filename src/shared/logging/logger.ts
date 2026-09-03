@@ -51,8 +51,21 @@ const REDACTED_KEY_PATTERN =
 export const REDACTED = '[REDACTED]'
 
 const MAX_DEPTH = 6
+const SENSITIVE_VALUE_PATTERNS: readonly RegExp[] = [
+  /\bpostgres(?:ql)?:\/\/[^\s]+/gi,
+  /\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
+  /\b(?:sk|pk)_(?:test|live)_[A-Za-z0-9_-]{8,}/gi,
+  /\bsk-(?:proj-)?[A-Za-z0-9_-]{8,}/gi,
+]
 
-/** Recursively redact sensitive keys from an arbitrary log payload. */
+function redactSensitiveString(value: string): string {
+  return SENSITIVE_VALUE_PATTERNS.reduce(
+    (safe, pattern) => safe.replace(pattern, REDACTED),
+    value,
+  )
+}
+
+/** Recursively redact sensitive keys and values from an arbitrary log payload. */
 export function redact(value: unknown, depth = 0): unknown {
   if (depth > MAX_DEPTH) return '[TRUNCATED]'
   if (value === null || value === undefined) return value
@@ -62,7 +75,7 @@ export function redact(value: unknown, depth = 0): unknown {
   }
 
   if (value instanceof Error) {
-    return { name: value.name, message: value.message }
+    return { name: value.name, message: redactSensitiveString(value.message) }
   }
 
   if (typeof value === 'object') {
@@ -73,7 +86,7 @@ export function redact(value: unknown, depth = 0): unknown {
     return out
   }
 
-  return value
+  return typeof value === 'string' ? redactSensitiveString(value) : value
 }
 
 export interface Logger {

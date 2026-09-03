@@ -12,14 +12,20 @@ export async function authenticateOpportunityRequest(
   const match = authorization?.match(/^Bearer\s+(.+)$/i)
   if (!match?.[1]) throw AppError.authRequired()
 
-  const parts = match[1].split('.')
-  if (parts.length !== 3) throw AppError.authRequired('Invalid authentication token')
+  const token = match[1]
+  if (token.length > 8_192) throw AppError.authRequired('Invalid authentication token')
+  const parts = token.split('.')
+  if (parts.length !== 3 || parts.some((part) => part.length === 0)) {
+    throw AppError.authRequired('Invalid authentication token')
+  }
   const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string]
   let header: unknown
   let payload: unknown
+  let signature: Uint8Array
   try {
     header = JSON.parse(decodeBase64Url(encodedHeader))
     payload = JSON.parse(decodeBase64Url(encodedPayload))
+    signature = decodeBase64UrlBytes(encodedSignature)
   } catch {
     throw AppError.authRequired('Invalid authentication token')
   }
@@ -34,17 +40,25 @@ export async function authenticateOpportunityRequest(
     false,
     ['verify'],
   )
-  const valid = await crypto.subtle.verify(
-    'HMAC',
-    key,
-    decodeBase64UrlBytes(encodedSignature),
-    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
-  )
+  let valid = false
+  try {
+    valid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      signature,
+      new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+    )
+  } catch {
+    throw AppError.authRequired('Invalid authentication token')
+  }
   if (!valid) throw AppError.authRequired('Invalid authentication token')
 
   const now = Math.floor(Date.now() / 1000)
-  if (typeof payload.exp === 'number' && payload.exp <= now) {
-    throw AppError.authRequired('Authentication token has expired')
+  if (!Number.isSafeInteger(payload.exp) || (payload.exp as number) <= now) {
+    throw AppError.authRequired('Authentication token has expired or has no valid expiry')
+  }
+  if (payload.nbf !== undefined && (!Number.isSafeInteger(payload.nbf) || (payload.nbf as number) > now)) {
+    throw AppError.authRequired('Authentication token is not active')
   }
   if (
     typeof payload.sub !== 'string' ||

@@ -62,6 +62,19 @@ describe('shared/logging/logger', () => {
     expect(serialized).toContain('ok')
   })
 
+  it('redacts credentials embedded inside otherwise safe string fields', () => {
+    const result = redact({
+      cause: 'connection to postgresql://service:password@db.internal/app failed',
+      note: 'upstream returned Bearer header.payload.signature',
+      error: new Error(`provider rejected ${['sk', 'proj', 'sensitivevalue123456789'].join('-')}`),
+    }) as Record<string, unknown>
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain('password')
+    expect(serialized).not.toContain('header.payload.signature')
+    expect(serialized).not.toContain('sensitivevalue123456789')
+    expect(serialized).toContain(REDACTED)
+  })
+
   it('propagates child context', () => {
     const { records, sink } = capture()
     const logger = createLogger({ level: 'debug', sink }).child({ request_id: 'req-9' })

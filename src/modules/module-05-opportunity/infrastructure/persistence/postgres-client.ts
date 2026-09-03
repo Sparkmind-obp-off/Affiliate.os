@@ -13,7 +13,7 @@ export function createPostgresOpportunityRepository(
   if (!pool) {
     pool = new Pool({
       connectionString: databaseUrl,
-      ssl: databaseSsl ? { rejectUnauthorized: false } : undefined,
+      ssl: databaseSsl ? { rejectUnauthorized: true } : undefined,
       max: 2,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 5_000,

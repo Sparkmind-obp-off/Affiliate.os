@@ -70,6 +70,14 @@ export type AppConfig = Readonly<{
 }>
 
 const POSTGRES_PROTOCOLS = ['postgres://', 'postgresql://']
+const MIN_AUTH_SECRET_LENGTH = 32
+const PROVIDER_CREDENTIAL_PREFIX = /^(?:sk|pk)_(?:test|live)_/i
+const UNSAFE_AUTH_SECRET_VALUES = new Set([
+  'replace-with-locally-generated-secret',
+  'changeme',
+  'development-secret',
+  'test-secret',
+])
 
 /** A production database MUST be PostgreSQL (Task 01 §11). */
 export function isPostgresUrl(url: string): boolean {
@@ -106,7 +114,20 @@ export function loadConfig(raw: RawEnv): AppConfig {
   // Production must not boot without its critical secrets.
   if (isProduction) {
     if (!value.DATABASE_URL) issues.push('DATABASE_URL is required in production')
-    if (!value.AUTH_SECRET) issues.push('AUTH_SECRET is required in production')
+    if (!value.DATABASE_SSL) issues.push('DATABASE_SSL=true is required in production')
+    if (!value.AUTH_SECRET) {
+      issues.push('AUTH_SECRET is required in production')
+    } else {
+      if (value.AUTH_SECRET.length < MIN_AUTH_SECRET_LENGTH) {
+        issues.push(`AUTH_SECRET must contain at least ${MIN_AUTH_SECRET_LENGTH} characters in production`)
+      }
+      if (
+        PROVIDER_CREDENTIAL_PREFIX.test(value.AUTH_SECRET) ||
+        UNSAFE_AUTH_SECRET_VALUES.has(value.AUTH_SECRET.toLowerCase())
+      ) {
+        issues.push('AUTH_SECRET must be an independently generated application secret')
+      }
+    }
   }
 
   if (issues.length > 0) throw new ConfigError(issues)

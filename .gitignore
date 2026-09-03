@@ -31,6 +31,10 @@ credentials.json
 *credential*.txt
 *api-key*.txt
 *api.key*.txt
+*secret*.txt
+*token*.txt
+*.gnspark
+*gnspark*.txt
 service-account*.json
 .npmrc
 .netrc
@@ -62,3 +66,5 @@ Thumbs.db
 *.zip
 *.bak
 *.backup
+*.dump
+*.sql.gz

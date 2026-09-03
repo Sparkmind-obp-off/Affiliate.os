@@ -201,6 +201,13 @@ describe('architecture: secret hygiene', () => {
     expect(violations, `possible secrets in source:\n${violations.join('\n')}`).toEqual([])
   })
 
+  it('rejects credential-like upload artifacts at the repository root', async () => {
+    const entries = await readdir(ROOT)
+    const forbiddenName = /(?:\.gnspark$|gnspark.*\.txt$|credential.*\.txt$|api[._-]?key.*\.txt$|secret.*\.txt$|token.*\.txt$)/i
+    const violations = entries.filter((entry) => forbiddenName.test(entry))
+    expect(violations, `credential-like root artifacts detected: ${violations.join(', ')}`).toEqual([])
+  })
+
   it('gitignores every secret-bearing file', async () => {
     const gitignore = await readFile(path.join(ROOT, '.gitignore'), 'utf8')
     for (const entry of [
@@ -211,6 +218,10 @@ describe('architecture: secret hygiene', () => {
       '*credential*.txt',
       '*api-key*.txt',
       '*api.key*.txt',
+      '*secret*.txt',
+      '*token*.txt',
+      '*.gnspark',
+      '*gnspark*.txt',
       'node_modules/',
     ]) {
       expect(gitignore, `.gitignore missing "${entry}"`).toContain(entry)

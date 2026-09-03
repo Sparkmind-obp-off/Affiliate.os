@@ -49,7 +49,8 @@ describe('production error exposure', () => {
     const { res, body } = await boom({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgres://u:p@h:5432/db',
-      AUTH_SECRET: 'test-only-secret',
+      AUTH_SECRET: 'production-test-secret-with-32-plus-characters',
+      DATABASE_SSL: 'true',
       LOG_LEVEL: 'error',
     })
 
@@ -100,7 +101,8 @@ describe('production error exposure', () => {
   it('closes the diagnostics channel for that same error in production', async () => {
     const { body } = await appThatThrowsAppError('production', {
       DATABASE_URL: 'postgres://u:p@h:5432/db',
-      AUTH_SECRET: 'test-only-secret',
+      AUTH_SECRET: 'production-test-secret-with-32-plus-characters',
+      DATABASE_SSL: 'true',
     })
     expect(body.error?.details).toBeUndefined()
   })
@@ -113,7 +115,8 @@ describe('production error exposure', () => {
       {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgres://u:p@h:5432/db',
-        AUTH_SECRET: 'test-only-secret',
+        AUTH_SECRET: 'production-test-secret-with-32-plus-characters',
+        DATABASE_SSL: 'true',
         LOG_LEVEL: 'error',
       },
     ]) {
@@ -168,12 +171,13 @@ describe('health environment reporting', () => {
     const res = await createApp().request('http://localhost/health', undefined, {
       NODE_ENV: 'production',
       DATABASE_URL: 'postgres://svc:s3cr3t@db.internal:5432/affiliate_os',
-      AUTH_SECRET: 'super-secret-value',
+      AUTH_SECRET: 'production-health-secret-with-32-plus-characters',
+      DATABASE_SSL: 'true',
       LOG_LEVEL: 'error',
     })
     const wire = JSON.stringify(await res.json())
     expect(wire).not.toContain('s3cr3t')
-    expect(wire).not.toContain('super-secret-value')
+    expect(wire).not.toContain('production-health-secret-with-32-plus-characters')
     expect(wire).not.toContain('db.internal')
   })
 })

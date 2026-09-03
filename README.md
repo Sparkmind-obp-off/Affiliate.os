@@ -60,6 +60,16 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Production test record confirmed directly in PostgreSQL and safely removed
 - [x] Task 03 deterministic regression preserved: **84 / STRONG / TEST_NOW / R12_TEST_NOW**
 
+## Completed — TASK 05 hardening
+
+- [x] Production requires TLS-enabled PostgreSQL and validates server certificates
+- [x] Production rejects missing, weak, placeholder, or provider-derived `AUTH_SECRET` values
+- [x] Persistent-route tokens require a valid signature, expiry, and UUID tenant claims
+- [x] Logging redacts credentials found in both sensitive keys and free-form error strings
+- [x] Migration execution is serialized with a PostgreSQL advisory lock and remains checksum-aware
+- [x] Accidental upload/transcript artifacts were removed from the current tree and ignored going forward
+- [ ] Historical credential exposure requires provider-side rotation/revocation; Git history rewrite is intentionally deferred to a separately authorized task
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -279,8 +289,9 @@ curl -X POST http://localhost:3000/api/v1/affiliate/opportunities/evaluate \
 ### Configuration
 
 Copy `.env.example` to `.env` (Node tooling) and/or `.dev.vars` (Workers
-runtime). Never commit either file. Production refuses to boot without
-`DATABASE_URL` and `AUTH_SECRET`.
+runtime). Never commit either file. Production refuses to boot without `DATABASE_URL`, `DATABASE_SSL=true`, and an
+independently generated `AUTH_SECRET` of at least 32 characters. Provider credentials
+(such as Clerk keys) must never be reused as `AUTH_SECRET`.
 
 ---
 
@@ -296,7 +307,7 @@ runtime). Never commit either file. Production refuses to boot without
 | No stack traces in responses   | Implemented                                        |
 | Secure response headers        | Implemented                                        |
 | Trace-header injection defense | Implemented — malformed ids rejected               |
-| Persistent-route authentication| Implemented — minimum HS256 signed tenant claims  |
+| Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
 | Full identity ecosystem        | **PENDING** — Module 15 task                       |
 | Authorization / policy engine  | **PENDING** — Module 16 task                       |
 | Tenant isolation enforcement   | Implemented for Module 05 repository queries       |
@@ -317,4 +328,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 05 production persistence activation and verification)
+- **Last updated:** 2026-09-03 (TASK 05 persistence hardening and security assurance)

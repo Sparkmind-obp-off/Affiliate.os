@@ -76,7 +76,7 @@ async function connect() {
   }
   const client = new pg.default.Client({
     connectionString,
-    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
   })
   await client.connect()
   return client
@@ -124,6 +124,9 @@ async function commandUp() {
   const migrations = await loadMigrationFiles()
   const client = await connect()
   try {
+    // Serialize concurrent deploy runners. The session-scoped lock is released
+    // automatically when the client closes, including failure paths.
+    await client.query("SELECT pg_advisory_lock(hashtext('affiliate-os:migrations'))")
     const applied = await readApplied(client)
     assertNoDrift(migrations, applied)
 

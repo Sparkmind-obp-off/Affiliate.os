@@ -6,6 +6,8 @@ import {
   DIAGNOSTIC_ENVS,
 } from '../../src/shared/config/env.js'
 
+const PRODUCTION_AUTH_SECRET = 'production-test-secret-with-32-plus-characters'
+
 describe('shared/config/env', () => {
   it('applies safe defaults for an empty environment', () => {
     const config = loadConfig({})
@@ -43,11 +45,29 @@ describe('shared/config/env', () => {
     const config = loadConfig({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgres://u:p@h:5432/db',
-      AUTH_SECRET: 'a-locally-generated-secret',
+      AUTH_SECRET: PRODUCTION_AUTH_SECRET,
+      DATABASE_SSL: 'true',
       APP_URL: 'https://affiliate-os.example.com',
       API_URL: 'https://affiliate-os.example.com/api/v1',
     })
     expect(config.isProduction).toBe(true)
+  })
+
+  it('rejects weak, provider-derived, or non-TLS production secrets', () => {
+    const base = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://u:p@h:5432/db',
+      DATABASE_SSL: 'true',
+    }
+    expect(() => loadConfig({ ...base, AUTH_SECRET: 'short-secret' })).toThrow(
+      /at least 32 characters/,
+    )
+    expect(() =>
+      loadConfig({ ...base, AUTH_SECRET: ['sk', 'test', 'providercredential000000000000'].join('_') }),
+    ).toThrow(/independently generated/)
+    expect(() =>
+      loadConfig({ ...base, DATABASE_SSL: 'false', AUTH_SECRET: PRODUCTION_AUTH_SECRET }),
+    ).toThrow(/DATABASE_SSL=true/)
   })
 
   it('rejects an invalid log level', () => {
@@ -93,7 +113,8 @@ describe('shared/config/env — environment provenance (Task 02)', () => {
     const config = loadConfig({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgres://u:p@h:5432/db',
-      AUTH_SECRET: 'a-locally-generated-secret',
+      AUTH_SECRET: PRODUCTION_AUTH_SECRET,
+      DATABASE_SSL: 'true',
     })
     expect(config.isProduction).toBe(true)
     expect(config.nodeEnvSource).toBe('declared')
