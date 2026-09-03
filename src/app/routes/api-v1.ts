@@ -3,6 +3,7 @@ import { successEnvelope } from '../../shared/http/envelope.js'
 import { opportunityRoutes } from '@modules/module-05-opportunity'
 import { demandRoutes } from '@modules/module-04-demand'
 import { creatorRoutes } from '@modules/module-06-creator-fit'
+import { contentOpportunityRoutes } from '@modules/module-07-content'
 import { identityRoutes } from '@modules/module-15-identity'
 import type { AppEnv } from '../types.js'
 
@@ -18,6 +19,7 @@ export const API_V1_MOUNTED_ROUTERS: ApiRootDescriptor['mounted_routers'] = [
   { path: '/api/v1/affiliate', owner_module: 'module-05-opportunity' },
   { path: '/api/v1/demand', owner_module: 'module-04-demand' },
   { path: '/api/v1/creators', owner_module: 'module-06-creator-fit' },
+  { path: '/api/v1/content-opportunities', owner_module: 'module-07-content' },
   { path: '/api/v1/identity', owner_module: 'module-15-identity' },
 ]
 
@@ -35,4 +37,5 @@ apiV1.get('/', (c) => {
 apiV1.route('/affiliate', opportunityRoutes)
 apiV1.route('/', demandRoutes)
 apiV1.route('/', creatorRoutes)
+apiV1.route('/', contentOpportunityRoutes)
 apiV1.route('/identity', identityRoutes)

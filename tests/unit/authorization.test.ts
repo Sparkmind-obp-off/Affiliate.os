@@ -80,6 +80,8 @@ describe('Task 07 deterministic authorization policy', () => {
       'demand.create',
       'creator.read',
       'creator.create',
+      'content_opportunity.read',
+      'content_opportunity.create',
     ])
   })
 

@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + TASK 10 CREATOR FIT FOUNDATION + PERSISTENT MODULE 05 MVP.**
+> **Current state: FOUNDATION + TASK 10 + TASK 11 CONTENT OPPORTUNITY FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -20,6 +20,8 @@ ecosystem commerce.
 > normalization/scoring, tenant-scoped persistence, duplicate protection, and authorized APIs.
 > TASK 10 adds workspace-owned creator profiles, controlled capability evidence, and an explainable,
 > deterministic Creator + Opportunity fit boundary without changing Module 05 scoring semantics.
+> TASK 11 composes Opportunity, verified Demand evidence, and Creator Fit into tenant-owned,
+> deterministic and explainable Content Opportunities without AI or provider dependencies.
 
 ---
 
@@ -135,6 +137,20 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Forward-only migration `0007` and authorized `/api/v1/creators` APIs
 - [ ] Provider ingestion, creator discovery, AI matching, recommendation, assignment, campaigns, and fit-result persistence remain deferred
 
+## Completed — TASK 11 (content strategy & content opportunity foundation)
+
+- [x] Module 07 public boundary for workspace-owned Content Opportunities
+- [x] Versioned controlled angle/status vocabularies plus Module 06 content-format reuse
+- [x] Explicit audience, creator-requirement, execution-constraint, and verified Module 04 evidence snapshots
+- [x] Deterministic seven-dimension, 100%-weighted policy `content-opportunity-v1.0.0`
+- [x] Distinct score, classification, confidence, coverage, positive/negative factors, and missing signals
+- [x] Module 06 Creator Fit evaluation reuse without duplicating its policy
+- [x] Workspace-scoped create/get/list/evaluate application and PostgreSQL repository operations
+- [x] Module 15 tenancy plus Module 16 `content_opportunity.read` / `content_opportunity.create` authorization
+- [x] Forward-only migration `0008` with composite tenant/opportunity foreign key and tenant indexes
+- [x] Authorized `/api/v1/content-opportunities` APIs and domain, persistence, API, security, and architecture tests
+- [ ] AI generation, publishing, TikTok, campaigns, automation, analytics, recommendation, and attribution remain deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -156,7 +172,7 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Content, distribution, performance, and revenue engines; advanced creator personalization/recommendation
+- [ ] Content generation/production beyond the Task 11 opportunity foundation; distribution, performance, and revenue engines; advanced creator personalization/recommendation
 - [ ] Advanced/custom authorization policies beyond the Task 07 minimal RBAC matrix
 - [ ] Full database schema — DOC 21 §180+ table DDL
 - [ ] TikTok / TikTok Shop connectors (Module 17)
@@ -188,6 +204,10 @@ smallest viable vertical and did not expand scope:
 | `GET`  | `/api/v1/creators?limit=N`                      | List workspace creator profiles; default 20, maximum 100.                | Clerk bearer JWT + `creator.read` |
 | `GET`  | `/api/v1/creators/:id`                          | Retrieve one workspace-owned creator profile by UUID.                    | Clerk bearer JWT + `creator.read` |
 | `POST` | `/api/v1/creators/:id/fit`                      | Evaluate deterministic fit against a tenant-owned opportunity and explicit criteria. | Clerk bearer JWT + `creator.read` + `opportunity.read` |
+| `POST` | `/api/v1/content-opportunities`                 | Create an evidence-backed workspace content opportunity.                              | Clerk bearer JWT + `content_opportunity.create` |
+| `GET`  | `/api/v1/content-opportunities?limit=N`         | List workspace content opportunities; default 20, maximum 100.                        | Clerk bearer JWT + `content_opportunity.read` |
+| `GET`  | `/api/v1/content-opportunities/:id`             | Retrieve one workspace-owned content opportunity by UUID.                             | Clerk bearer JWT + `content_opportunity.read` |
+| `POST` | `/api/v1/content-opportunities/:id/evaluate`    | Evaluate against `{ "creatorId": "uuid" }` using the versioned deterministic policy. | Clerk bearer JWT + content/creator/opportunity read permissions |
 | `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
@@ -278,7 +298,9 @@ Stack traces and internal causes are never present in a response body.
   provenance, bounded deterministic score/status fields, per-workspace fingerprint uniqueness,
   tenant indexes, and the `demand.read` / `demand.create` permission catalog entries. Migration
   `0007` creates `module_06.creator_profiles`, controlled evidence fields, per-workspace reference
-  uniqueness, tenant indexes, and `creator.read` / `creator.create` permission entries.
+  uniqueness, tenant indexes, and `creator.read` / `creator.create` permission entries. Migration
+  `0008` creates `module_07.content_opportunities`, enforces composite workspace/opportunity ownership,
+  controlled angle/status and JSON shapes, tenant indexes, and content-opportunity permissions.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
@@ -307,6 +329,7 @@ src/
 │   ├── module-04-demand/        # IMPLEMENTED (TASK 09)
 │   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03–08)
 │   ├── module-06-creator-fit/   # FOUNDATION IMPLEMENTED (TASK 10)
+│   ├── module-07-content/       # FOUNDATION IMPLEMENTED (TASK 11)
 │   │   ├── domain/          # scoring, decision, priority, angles, explanation
 │   │   ├── application/     # use cases, schemas, ports
 │   │   ├── infrastructure/  # http adapter
@@ -389,7 +412,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | ------------------------------ | -------------------------------------------------- |
 | Secret hygiene                 | Enforced — gitignore + secret-scanning test        |
 | Config validation              | Implemented — fails closed on invalid config       |
-| Input validation (Modules 04/05/06)| Implemented — strict schemas, `422` + field details |
+| Input validation (Modules 04/05/06/07)| Implemented — strict schemas, `422` + field details |
 | Fail-closed unimplemented data | Implemented — `501`, never a fake empty collection |
 | Secret redaction in logs       | Implemented — structural, not caller-dependent     |
 | No stack traces in responses   | Implemented                                        |
@@ -398,7 +421,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
 | External identity + tenancy    | Implemented — Clerk boundary + Module 15 context   |
 | Authorization / RBAC boundary  | Implemented — minimal Task 07 Module 16 policy      |
-| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05/06 queries |
+| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05/06/07 queries |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -416,4 +439,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 10 creator fit & matching foundation)
+- **Last updated:** 2026-09-03 (TASK 11 code deployed; migration `0008` and authenticated persistence flow not production-verified)

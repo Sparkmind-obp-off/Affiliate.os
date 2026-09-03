@@ -55,6 +55,7 @@ Requires `DATABASE_URL` to point at a PostgreSQL instance.
 | `0005_module_05_opportunity_workflow.sql` | Task 08 lifecycle states, update permission, and tenant/status index | ready |
 | `0006_module_04_demand_discovery.sql` | Task 09 tenant-owned demand signals, evidence, fingerprint uniqueness, permissions, and indexes | ready |
 | `0007_module_06_creator_fit.sql` | Task 10 tenant-owned creator profiles, controlled capabilities, permissions, and indexes | ready |
+| `0008_module_07_content_opportunity.sql` | Task 11 tenant-owned content opportunities, composite ownership, permissions, and indexes | ready |
 
 Migration `0003` establishes the minimum tenant boundary. Migration `0004` preserves existing
 owner memberships, expands the allowed role vocabulary to `owner` / `admin` / `member`, and
@@ -68,3 +69,7 @@ tenant/status/problem indexes, and registers `demand.read` / `demand.create`.
 Migration `0007` creates the Module 06 schema and workspace-owned creator profiles with controlled
 platform/capability/availability/evidence vocabularies, per-workspace creator-reference uniqueness,
 tenant-aware indexes, and the `creator.read` / `creator.create` permissions.
+Migration `0008` creates `module_07.content_opportunities`, adds a composite workspace/opportunity
+reference so tenant ownership is enforced by PostgreSQL, validates controlled status/angle and JSON
+shapes, adds tenant-aware indexes, and registers `content_opportunity.read` /
+`content_opportunity.create`.
