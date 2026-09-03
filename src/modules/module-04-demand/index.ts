@@ -1,17 +1,17 @@
-/**
- * DEMAND DISCOVERY ENGINE
- * Module: module-04-demand
- * Architecture reference: AFFILIATE OS — DEMAND DISCOVERY ENGINE v1.0
- *
- * PUBLIC CONTRACT — this file is the ONLY legal import surface of this module.
- * Other modules MUST import from '@modules/module-04-demand' and MUST NOT reach into
- * this module's internal folders (enforced by tests/architecture).
- *
- * STATUS: NOT_IMPLEMENTED (foundation only, AFFILIATE-OS-FOUNDATION-001).
- * Domain, application, and infrastructure layers are added by this module's
- * own dedicated implementation task.
- */
-
+/** Public contract for Demand Discovery Engine (Task 09). */
 export const MODULE_ID = 'module-04-demand' as const
 export const MODULE_TITLE = 'Demand Discovery Engine' as const
-export const MODULE_STATUS = 'NOT_IMPLEMENTED' as const
+export const MODULE_STATUS = 'FOUNDATION_IMPLEMENTED' as const
+
+export { demandRoutes } from './infrastructure/http/demand-routes.js'
+export { createDemandSignal, getDemandSignal, listDemandSignals, parseDemandInput } from './application/demand-service.js'
+export type { DemandSignalRepository, DemandCreateResult, DemandSignalDraft } from './application/ports.js'
+export {
+  DEMAND_CONFIDENCE, DEMAND_SIGNAL_TYPES, DEMAND_SOURCE_TYPES, DEMAND_STATUSES,
+  calculateDemandScore, classifyDemandStatus, normalizeCanonicalProblem,
+  isDemandConfidence, isDemandSignalType, isDemandSourceType,
+  type DemandConfidence, type DemandSignal, type DemandSignalInput, type DemandSignalType,
+  type DemandSourceType, type DemandStatus,
+} from './domain/demand.js'
+export { PostgresDemandSignalRepository } from './infrastructure/persistence/postgres-demand-repository.js'
+export { createPostgresDemandSignalRepository } from './infrastructure/persistence/postgres-client.js'
