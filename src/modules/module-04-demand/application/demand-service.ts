@@ -1,115 +1,202 @@
+import { z } from 'zod'
 import { AppError } from '../../../shared/errors/app-error.js'
 import {
+  DEMAND_CONFIDENCE,
+  DEMAND_SIGNAL_TYPES,
+  DEMAND_SOURCE_TYPES,
   calculateDemandScore,
   classifyDemandStatus,
-  isDemandConfidence,
-  isDemandSignalType,
-  isDemandSourceType,
   normalizeCanonicalProblem,
+  type DemandSignal,
   type DemandSignalInput,
 } from '../domain/demand.js'
-import type { DemandSignalRepository } from './ports.js'
+import {
+  systemDemandClock,
+  type DemandClock,
+  type DemandSignalRepository,
+} from './ports.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const MAX_LIST_LIMIT = 100
+export const DEFAULT_DEMAND_LIST_LIMIT = 20
+export const MAX_DEMAND_LIST_LIMIT = 100
 
-type CreatedDemandSignal = Awaited<ReturnType<DemandSignalRepository['create']>>
+const trimmedText = (maximum: number) => z.string().trim().min(1).max(maximum)
+const optionalTrimmedText = (maximum: number) => trimmedText(maximum).optional()
+
+const demandInputSchema = z.object({
+  problem: trimmedText(1_000),
+  audience: trimmedText(500),
+  category: optionalTrimmedText(200),
+  keyword: optionalTrimmedText(300),
+  signalType: z.enum(DEMAND_SIGNAL_TYPES),
+  signalValue: z.number().finite().min(0).max(100),
+  sourceType: z.enum(DEMAND_SOURCE_TYPES),
+  sourceRef: optionalTrimmedText(2_000),
+  observedAt: z.string().datetime({ offset: true }),
+  confidence: z.enum(DEMAND_CONFIDENCE),
+  evidence: trimmedText(10_000),
+}).strict()
+
+export interface DemandServiceDependencies {
+  repository: DemandSignalRepository
+  clock?: DemandClock
+}
 
 export function parseDemandInput(payload: unknown): DemandSignalInput {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw invalid()
-  const p = payload as Record<string, unknown>
-  const requiredStrings = ['problem', 'audience', 'signalType', 'sourceType', 'observedAt', 'confidence', 'evidence']
-  for (const field of requiredStrings) {
-    if (typeof p[field] !== 'string' || !p[field].trim()) throw invalid(field)
+  const parsed = demandInputSchema.safeParse(payload)
+  if (!parsed.success) {
+    throw AppError.validation('Demand signal payload is invalid', {
+      issues: parsed.error.issues.map((issue) => ({
+        field: issue.path.join('.') || '(body)',
+        message: issue.message,
+      })),
+    })
   }
-  if (p.category !== undefined && typeof p.category !== 'string') throw invalid('category')
-  if (p.keyword !== undefined && typeof p.keyword !== 'string') throw invalid('keyword')
-  if (p.sourceRef !== undefined && typeof p.sourceRef !== 'string') throw invalid('sourceRef')
-  if (typeof p.signalValue !== 'number' || !Number.isFinite(p.signalValue) || p.signalValue < 0 || p.signalValue > 100) throw invalid('signalValue')
-  if (Number.isNaN(Date.parse(p.observedAt as string))) throw invalid('observedAt')
-  if (!isDemandSignalType(p.signalType)) throw invalid('signalType')
-  if (!isDemandSourceType(p.sourceType)) throw invalid('sourceType')
-  if (!isDemandConfidence(p.confidence)) throw invalid('confidence')
   return {
-    problem: p.problem as string,
-    audience: p.audience as string,
-    category: p.category as string | undefined,
-    keyword: p.keyword as string | undefined,
-    signalType: p.signalType,
-    signalValue: p.signalValue,
-    sourceType: p.sourceType,
-    sourceRef: p.sourceRef as string | undefined,
-    observedAt: p.observedAt as string,
-    confidence: p.confidence,
-    evidence: p.evidence as string,
+    ...parsed.data,
+    observedAt: new Date(parsed.data.observedAt).toISOString(),
   }
 }
 
 export async function createDemandSignal(
   payload: unknown,
   workspaceId: string,
-  repository: DemandSignalRepository,
-): Promise<CreatedDemandSignal> {
-  if (!UUID_RE.test(workspaceId)) throw AppError.validation('Workspace id is invalid')
+  dependencies: DemandServiceDependencies | DemandSignalRepository,
+): Promise<DemandSignal> {
+  validateWorkspaceId(workspaceId)
   const input = parseDemandInput(payload)
   const canonicalProblem = normalizeCanonicalProblem(input.problem)
-  const collectedAt = new Date().toISOString()
+  if (!canonicalProblem) {
+    throw AppError.validation('Demand signal payload is invalid', {
+      issues: [{ field: 'problem', message: 'must contain letters or numbers' }],
+    })
+  }
+
+  const dependenciesWithClock = isDependencies(dependencies)
+    ? dependencies
+    : { repository: dependencies }
+  const collectedAt = (dependenciesWithClock.clock ?? systemDemandClock).now().toISOString()
   const demandScore = calculateDemandScore(input)
   const status = classifyDemandStatus(input, demandScore)
-  const fingerprint = await fingerprintFor(workspaceId, input, canonicalProblem)
+  const fingerprint = await fingerprintDemandSignal(workspaceId, input, canonicalProblem)
+
   try {
-    return await repository.create({
+    return await dependenciesWithClock.repository.create({
       ...input,
       workspaceId,
       canonicalProblem,
       collectedAt,
       demandScore,
       status,
+      fingerprint,
       createdAt: collectedAt,
       updatedAt: collectedAt,
-      fingerprint,
     })
   } catch (error) {
-    if (isUniqueViolation(error)) throw AppError.conflict('An equivalent demand signal already exists')
+    if (isUniqueViolation(error)) {
+      throw AppError.conflict('An equivalent demand signal already exists')
+    }
+    if (error instanceof AppError) throw error
     throw AppError.internal('Failed to persist demand signal', error)
   }
 }
 
-export async function getDemandSignal(id: string, workspaceId: string, repository: DemandSignalRepository) {
-  if (!UUID_RE.test(id)) throw AppError.validation('Demand signal id is invalid')
-  const signal = await repository.findById(workspaceId, id)
-  if (!signal) throw AppError.notFound('Demand signal not found')
-  return signal
+export async function getDemandSignal(
+  id: string,
+  workspaceId: string,
+  repository: DemandSignalRepository,
+): Promise<DemandSignal> {
+  validateWorkspaceId(workspaceId)
+  if (!UUID_RE.test(id)) {
+    throw AppError.validation('Demand signal id is invalid', {
+      issues: [{ field: 'id', message: 'must be a UUID' }],
+    })
+  }
+  try {
+    const signal = await repository.findById(workspaceId, id)
+    if (!signal) throw AppError.notFound('Demand signal not found')
+    return signal
+  } catch (error) {
+    if (error instanceof AppError) throw error
+    throw AppError.internal('Failed to retrieve demand signal', error)
+  }
 }
 
-export async function listDemandSignals(workspaceId: string, rawLimit: string | undefined, repository: DemandSignalRepository) {
-  if (!UUID_RE.test(workspaceId)) throw AppError.validation('Workspace id is invalid')
-  const limit = rawLimit === undefined ? 20 : Number(rawLimit)
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIST_LIMIT) throw AppError.validation('Demand signal limit is invalid')
-  return repository.list(workspaceId, limit)
+export async function listDemandSignals(
+  workspaceId: string,
+  rawLimit: string | undefined,
+  repository: DemandSignalRepository,
+): Promise<DemandSignal[]> {
+  validateWorkspaceId(workspaceId)
+  const limit = parseDemandListLimit(rawLimit)
+  try {
+    return await repository.list(workspaceId, limit)
+  } catch (error) {
+    throw AppError.internal('Failed to list demand signals', error)
+  }
 }
 
-async function fingerprintFor(workspaceId: string, input: DemandSignalInput, canonicalProblem: string): Promise<string> {
+export function parseDemandListLimit(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_DEMAND_LIST_LIMIT
+  if (!/^\d+$/.test(raw)) throw invalidLimit()
+  const limit = Number(raw)
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_DEMAND_LIST_LIMIT) {
+    throw invalidLimit()
+  }
+  return limit
+}
+
+/** Stable SHA-256 identity for one tenant-owned source observation. */
+export async function fingerprintDemandSignal(
+  workspaceId: string,
+  input: DemandSignalInput,
+  canonicalProblem = normalizeCanonicalProblem(input.problem),
+): Promise<string> {
+  validateWorkspaceId(workspaceId)
   const raw = JSON.stringify([
     workspaceId,
     canonicalProblem,
-    input.audience.trim().toLowerCase(),
-    input.keyword?.trim().toLowerCase() ?? '',
+    normalizeFingerprintText(input.audience),
+    normalizeFingerprintText(input.category ?? ''),
+    normalizeFingerprintText(input.keyword ?? ''),
     input.signalType,
     input.sourceType,
-    input.sourceRef?.trim() ?? '',
-    input.observedAt,
+    normalizeFingerprintText(input.sourceRef ?? ''),
+    new Date(input.observedAt).toISOString(),
   ])
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw))
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
 }
 
-function invalid(field = '(body)'): AppError {
-  return AppError.validation('Demand signal payload is invalid', {
-    issues: [{ field, message: 'invalid or missing value' }],
+function normalizeFingerprintText(value: string): string {
+  return value.normalize('NFKC').toLocaleLowerCase('und').replace(/\s+/g, ' ').trim()
+}
+
+function validateWorkspaceId(workspaceId: string): void {
+  if (!UUID_RE.test(workspaceId)) {
+    throw AppError.validation('Workspace id is invalid', {
+      issues: [{ field: 'workspaceId', message: 'must be a UUID' }],
+    })
+  }
+}
+
+function invalidLimit(): AppError {
+  return AppError.validation('Demand signal limit is invalid', {
+    issues: [{ field: 'limit', message: `must be an integer from 1 to ${MAX_DEMAND_LIST_LIMIT}` }],
   })
 }
 
+function isDependencies(
+  value: DemandServiceDependencies | DemandSignalRepository,
+): value is DemandServiceDependencies {
+  return 'repository' in value
+}
+
 function isUniqueViolation(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505'
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: string }).code === '23505'
 }

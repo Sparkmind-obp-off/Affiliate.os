@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 08 OPPORTUNITY WORKFLOW FOUNDATION.**
+> **Current state: FOUNDATION + TASK 09 DEMAND DISCOVERY FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -16,6 +16,8 @@ ecosystem commerce.
 > on the persisted opportunity lifecycle while retaining repository-level tenant filtering.
 > TASK 08 adds the deterministic `draft → active → completed` workflow, archival transitions,
 > atomic tenant-scoped state updates, and the authorized lifecycle API.
+> TASK 09 establishes the upstream, evidence-first Demand Discovery foundation with deterministic
+> normalization/scoring, tenant-scoped persistence, duplicate protection, and authorized APIs.
 
 ---
 
@@ -107,6 +109,18 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Focused valid/invalid transition, authorization, tenant-isolation, concurrency-conflict, and API tests
 - [ ] Workflow history/audit events and arbitrary/custom states remain intentionally deferred
 
+## Completed — TASK 09 (demand discovery foundation)
+
+- [x] Evidence-first Module 04 demand-signal domain with controlled signal/source/confidence/status vocabularies
+- [x] Conservative Unicode normalization and transparent deterministic demand scoring
+- [x] Tenant-scoped SHA-256 fingerprinting with authoritative PostgreSQL uniqueness
+- [x] Workspace-scoped create/get/bounded-list application and repository operations
+- [x] `POST`/`GET /api/v1/demand/signals` and `GET /api/v1/demand/signals/:id`
+- [x] Module 15 identity/tenancy and Module 16 `demand.read` / `demand.create` authorization reuse
+- [x] Forward-only migration `0006` with constraints and targeted workspace indexes
+- [x] Domain, validation, duplicate, persistence, authorization, API, and tenant-isolation tests
+- [ ] Provider connectors, automated discovery, AI-only inference, and automatic Opportunity creation remain deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -128,7 +142,6 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
 - [ ] Advanced/custom authorization policies beyond the Task 07 minimal RBAC matrix
 - [ ] Full database schema — DOC 21 §180+ table DDL
@@ -154,6 +167,9 @@ smallest viable vertical and did not expand scope:
 | `GET`  | `/api/v1/affiliate/opportunities?limit=N`       | List workspace opportunities; default 20, maximum 100.                 | bearer JWT |
 | `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | Retrieve one workspace opportunity by stable candidate reference.      | bearer JWT |
 | `PATCH`| `/api/v1/affiliate/opportunities/:id`           | Transition lifecycle with `{ "status": "active" }`; returns `200`.    | Clerk bearer JWT + `opportunity.update` |
+| `POST` | `/api/v1/demand/signals`                        | Normalize, score, fingerprint, and persist one evidence-backed signal. | Clerk bearer JWT + `demand.create` |
+| `GET`  | `/api/v1/demand/signals?limit=N`                | List workspace demand signals; default 20, maximum 100.                 | Clerk bearer JWT + `demand.read` |
+| `GET`  | `/api/v1/demand/signals/:id`                    | Retrieve one workspace-owned demand signal by UUID.                     | Clerk bearer JWT + `demand.read` |
 | `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
@@ -230,7 +246,7 @@ Stack traces and internal causes are never present in a response body.
   forbidden as production persistence and are blocked by both configuration
   validation and an architecture test.
 - **Schema ownership:** one database, module-owned logical schemas
-  (`module_05`, `module_14`, `module_15`, `module_16`, `module_17`, `module_19`) — DOC 21 §2.
+  (`module_04`, `module_05`, `module_14`, `module_15`, `module_16`, `module_17`, `module_19`) — DOC 21 §2.
 - **Migrations:** forward-only, one transaction each, recorded in
   `public.schema_migrations` with a SHA-256 checksum. Editing an applied
   migration fails the runner instead of drifting silently.
@@ -240,7 +256,9 @@ Stack traces and internal causes are never present in a response body.
   membership roles to `owner` / `admin` / `member`, adds the Module 16 permission catalog,
   and indexes workspace-role-status lookups. Migration `0005` converts legacy opportunity
   status markers to the Task 08 lifecycle, adds its CHECK constraint and tenant/status index,
-  and registers `opportunity.update`.
+  and registers `opportunity.update`. Migration `0006` adds `module_04.demand_signals`, evidence
+  provenance, bounded deterministic score/status fields, per-workspace fingerprint uniqueness,
+  tenant indexes, and the `demand.read` / `demand.create` permission catalog entries.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
@@ -266,7 +284,8 @@ src/
 │   ├── middleware/          # observability, error handling
 │   └── routes/              # health, api-v1
 ├── modules/                 # 18 locked modules, each with a public contract
-│   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03)
+│   ├── module-04-demand/        # IMPLEMENTED (TASK 09)
+│   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03–08)
 │   │   ├── domain/          # scoring, decision, priority, angles, explanation
 │   │   ├── application/     # use cases, schemas, ports
 │   │   ├── infrastructure/  # http adapter
@@ -349,7 +368,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | ------------------------------ | -------------------------------------------------- |
 | Secret hygiene                 | Enforced — gitignore + secret-scanning test        |
 | Config validation              | Implemented — fails closed on invalid config       |
-| Input validation (Module 05)   | Implemented — Zod schemas, `422` + field details   |
+| Input validation (Modules 04/05)| Implemented — strict schemas, `422` + field details |
 | Fail-closed unimplemented data | Implemented — `501`, never a fake empty collection |
 | Secret redaction in logs       | Implemented — structural, not caller-dependent     |
 | No stack traces in responses   | Implemented                                        |
@@ -358,7 +377,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
 | External identity + tenancy    | Implemented — Clerk boundary + Module 15 context   |
 | Authorization / RBAC boundary  | Implemented — minimal Task 07 Module 16 policy      |
-| Tenant isolation enforcement   | Implemented — authorization + Module 05 queries     |
+| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05 queries |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -376,4 +395,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 08 opportunity workflow and lifecycle foundation)
+- **Last updated:** 2026-09-03 (TASK 09 demand discovery foundation)

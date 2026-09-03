@@ -71,7 +71,14 @@ describe('Task 07 deterministic authorization policy', () => {
   it('keeps the role-permission matrix minimal and deterministic', () => {
     expect(permissionsForRole('owner')).toContain('workspace.manage')
     expect(permissionsForRole('admin')).not.toContain('workspace.manage')
-    expect(permissionsForRole('member')).toEqual(['workspace.read', 'opportunity.read', 'opportunity.create', 'opportunity.update'])
+    expect(permissionsForRole('member')).toEqual([
+      'workspace.read',
+      'opportunity.read',
+      'opportunity.create',
+      'opportunity.update',
+      'demand.read',
+      'demand.create',
+    ])
   })
 
   it('denies missing permissions, unknown permissions, and unknown roles', () => {
