@@ -5,6 +5,7 @@ export const PERMISSIONS = [
   'opportunity.read', 'opportunity.create', 'opportunity.update',
   'demand.read', 'demand.create', 'creator.read', 'creator.create',
   'content_opportunity.read', 'content_opportunity.create',
+  'content_generation.read', 'content_generation.create', 'content_generation.update',
 ] as const
 export type Permission = (typeof PERMISSIONS)[number]
 export type AuthorizationEffect = 'ALLOW' | 'DENY'
@@ -15,8 +16,8 @@ export interface AuthorizationDecision { effect: AuthorizationEffect; reason: Au
 
 const ROLE_PERMISSIONS = {
   owner: PERMISSIONS,
-  admin: ['workspace.read','member.read','member.manage','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create','content_opportunity.read','content_opportunity.create'],
-  member: ['workspace.read','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create','content_opportunity.read','content_opportunity.create'],
+  admin: ['workspace.read','member.read','member.manage','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create','content_opportunity.read','content_opportunity.create','content_generation.read','content_generation.create','content_generation.update'],
+  member: ['workspace.read','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create','content_opportunity.read','content_opportunity.create','content_generation.read','content_generation.create','content_generation.update'],
 } as const satisfies Record<string, readonly Permission[]>
 export type AuthorizationRole = keyof typeof ROLE_PERMISSIONS
 const deny = (reason: Exclude<AuthorizationReason, 'authorized'>): AuthorizationDecision => ({ effect: 'DENY', reason })

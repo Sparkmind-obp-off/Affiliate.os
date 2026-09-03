@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + TASK 10 + TASK 11 CONTENT OPPORTUNITY FOUNDATION + PERSISTENT MODULE 05 MVP.**
+> **Current state: FOUNDATION + TASK 10 + TASK 11 + TASK 12 CONTENT GENERATION FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -22,6 +22,9 @@ ecosystem commerce.
 > deterministic Creator + Opportunity fit boundary without changing Module 05 scoring semantics.
 > TASK 11 composes Opportunity, verified Demand evidence, and Creator Fit into tenant-owned,
 > deterministic and explainable Content Opportunities without AI or provider dependencies.
+> TASK 12 adds tenant-owned generation specifications and artifacts, deterministic lifecycle/policy,
+> provenance fingerprints, human review, and a provider-independent generation port that fails closed
+> when no secure runtime adapter is configured.
 
 ---
 
@@ -151,6 +154,19 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Authorized `/api/v1/content-opportunities` APIs and domain, persistence, API, security, and architecture tests
 - [ ] AI generation, publishing, TikTok, campaigns, automation, analytics, recommendation, and attribution remain deferred
 
+## Completed — TASK 12 (content generation foundation)
+
+- [x] New public `module-08-content-generation` boundary; the existing future distribution stub remains separate
+- [x] Versioned deterministic policy `content-generation-v1.0.0`, controlled content type/language/format vocabularies, and centralized lifecycle transitions
+- [x] Tenant-owned generation specifications and generated artifacts with input/output SHA-256 fingerprints
+- [x] Provider-independent `GenerationProvider` port with explicit fail-closed behavior when unavailable
+- [x] Structural provider-output validation, provenance, usage metadata, and human review states
+- [x] Workspace-scoped create/get/list/request/review services and PostgreSQL repository operations
+- [x] Module 15 tenancy plus Module 16 `content_generation.read` / `create` / `update` authorization
+- [x] Forward-only migration `0009`, composite tenant-safe Content Opportunity/Creator foreign keys, and targeted indexes
+- [x] Authorized `/api/v1/content-generations` APIs plus domain, provider, persistence, API, tenant-isolation, and architecture tests
+- [ ] Concrete AI provider adapters, moderation, distributed idempotency, publishing, scheduling, analytics, and autonomous approval remain deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -172,7 +188,7 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Content generation/production beyond the Task 11 opportunity foundation; distribution, performance, and revenue engines; advanced creator personalization/recommendation
+- [ ] Concrete AI-provider adapters beyond the Task 12 provider-independent foundation; distribution, performance, and revenue engines; advanced creator personalization/recommendation
 - [ ] Advanced/custom authorization policies beyond the Task 07 minimal RBAC matrix
 - [ ] Full database schema — DOC 21 §180+ table DDL
 - [ ] TikTok / TikTok Shop connectors (Module 17)
@@ -208,6 +224,11 @@ smallest viable vertical and did not expand scope:
 | `GET`  | `/api/v1/content-opportunities?limit=N`         | List workspace content opportunities; default 20, maximum 100.                        | Clerk bearer JWT + `content_opportunity.read` |
 | `GET`  | `/api/v1/content-opportunities/:id`             | Retrieve one workspace-owned content opportunity by UUID.                             | Clerk bearer JWT + `content_opportunity.read` |
 | `POST` | `/api/v1/content-opportunities/:id/evaluate`    | Evaluate against `{ "creatorId": "uuid" }` using the versioned deterministic policy. | Clerk bearer JWT + content/creator/opportunity read permissions |
+| `POST` | `/api/v1/content-generations`                   | Create a validated tenant-owned generation specification in `DRAFT`.                    | Clerk bearer JWT + `content_generation.create` |
+| `GET`  | `/api/v1/content-generations?limit=N`           | List workspace generations; default 20, maximum 100.                                    | Clerk bearer JWT + `content_generation.read` |
+| `GET`  | `/api/v1/content-generations/:id`               | Retrieve one workspace-owned generation and provenance.                                 | Clerk bearer JWT + `content_generation.read` |
+| `POST` | `/api/v1/content-generations/:id/request`       | Invoke the configured provider port; fails explicitly when unavailable.                 | Clerk bearer JWT + `content_generation.create` |
+| `POST` | `/api/v1/content-generations/:id/review`        | Apply one centralized lifecycle transition with `{ "status": "..." }`.               | Clerk bearer JWT + `content_generation.update` |
 | `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
@@ -300,7 +321,9 @@ Stack traces and internal causes are never present in a response body.
   `0007` creates `module_06.creator_profiles`, controlled evidence fields, per-workspace reference
   uniqueness, tenant indexes, and `creator.read` / `creator.create` permission entries. Migration
   `0008` creates `module_07.content_opportunities`, enforces composite workspace/opportunity ownership,
-  controlled angle/status and JSON shapes, tenant indexes, and content-opportunity permissions.
+  controlled angle/status and JSON shapes, tenant indexes, and content-opportunity permissions. Migration
+  `0009` creates `module_08.content_generations`, tenant-safe Content Opportunity/Creator references,
+  deterministic fingerprints, provider provenance, lifecycle constraints, indexes, and generation permissions.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
@@ -330,6 +353,8 @@ src/
 │   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03–08)
 │   ├── module-06-creator-fit/   # FOUNDATION IMPLEMENTED (TASK 10)
 │   ├── module-07-content/       # FOUNDATION IMPLEMENTED (TASK 11)
+│   ├── module-08-content-generation/ # FOUNDATION IMPLEMENTED (TASK 12)
+│   ├── module-08-distribution/  # DEFERRED distribution boundary
 │   │   ├── domain/          # scoring, decision, priority, angles, explanation
 │   │   ├── application/     # use cases, schemas, ports
 │   │   ├── infrastructure/  # http adapter
@@ -412,7 +437,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | ------------------------------ | -------------------------------------------------- |
 | Secret hygiene                 | Enforced — gitignore + secret-scanning test        |
 | Config validation              | Implemented — fails closed on invalid config       |
-| Input validation (Modules 04/05/06/07)| Implemented — strict schemas, `422` + field details |
+| Input validation (Modules 04/05/06/07/08 generation)| Implemented — strict schemas, `422` + field details |
 | Fail-closed unimplemented data | Implemented — `501`, never a fake empty collection |
 | Secret redaction in logs       | Implemented — structural, not caller-dependent     |
 | No stack traces in responses   | Implemented                                        |
@@ -421,7 +446,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
 | External identity + tenancy    | Implemented — Clerk boundary + Module 15 context   |
 | Authorization / RBAC boundary  | Implemented — minimal Task 07 Module 16 policy      |
-| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05/06/07 queries |
+| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05/06/07/08 generation queries |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -439,4 +464,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 11 code deployed; migration `0008` and authenticated persistence flow not production-verified)
+- **Last updated:** 2026-09-03 (TASK 12 code ready for deployment; migration `0009` and authenticated persistence flow require production verification)

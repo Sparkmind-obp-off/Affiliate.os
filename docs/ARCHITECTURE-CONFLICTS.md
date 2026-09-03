@@ -185,4 +185,22 @@ new production secret was introduced**.
 - The runtime adapter is configured only by `DATABASE_URL`; no D1/KV/SQLite
   fallback exists. Missing configuration still fails closed.
 - The sandbox had no PostgreSQL credentials, so migration execution and live
-  database E2E verification remain honestly unverified under CONFLICT-05.
+database E2E verification remain honestly unverified under CONFLICT-05.
+
+---
+
+## CONFLICT-07 — Task 12 generation boundary vs. locked Module 08 distribution registry
+
+Task: `TASK-12-CONTENT-GENERATION-FOUNDATION`
+
+**Status: DOCUMENTED — both boundaries preserved pending a registry decision.**
+
+The locked foundation registry already reserves `module-08-distribution` for future social
+distribution, while the Task 12 execution contract names the provider-independent generation
+foundation as Module 08. Task 12 does not rename, replace, or absorb the locked distribution
+stub. It adds `module-08-content-generation` as a distinct public boundary and owns only the
+Content Opportunity → Generation Specification → Generated Artifact transition.
+
+The generated artifact is never published automatically. `module-08-distribution` remains
+`NOT_IMPLEMENTED`, and a later architecture-governance task may reconcile numeric labels without
+combining ownership or rewriting history.
