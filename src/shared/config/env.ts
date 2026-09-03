@@ -40,6 +40,9 @@ const envSchema = z.object({
     .optional()
     .transform((v) => v === true || v === 'true'),
   AUTH_SECRET: z.string().min(1).optional(),
+  CLERK_ISSUER: z.string().url().optional(),
+  CLERK_JWKS_URL: z.string().url().optional(),
+  CLERK_AUTHORIZED_PARTY: z.string().url().optional(),
 })
 
 export type RawEnv = Record<string, string | undefined>
@@ -67,6 +70,9 @@ export type AppConfig = Readonly<{
   databaseUrl: string | null
   databaseSsl: boolean
   authSecret: string | null
+  clerkIssuer: string | null
+  clerkJwksUrl: string | null
+  clerkAuthorizedParty: string | null
 }>
 
 const POSTGRES_PROTOCOLS = ['postgres://', 'postgresql://']
@@ -144,5 +150,8 @@ export function loadConfig(raw: RawEnv): AppConfig {
     databaseUrl: value.DATABASE_URL ?? null,
     databaseSsl: Boolean(value.DATABASE_SSL),
     authSecret: value.AUTH_SECRET ?? null,
+    clerkIssuer: value.CLERK_ISSUER?.replace(/\/$/, '') ?? null,
+    clerkJwksUrl: value.CLERK_JWKS_URL ?? null,
+    clerkAuthorizedParty: value.CLERK_AUTHORIZED_PARTY ?? null,
   })
 }

@@ -13,3 +13,8 @@ API_URL=http://localhost:3000/api/v1
 
 # Generate locally: openssl rand -base64 48
 # AUTH_SECRET=
+
+# Clerk public JWT verification metadata (never put CLERK_SECRET_KEY here).
+# CLERK_ISSUER=https://YOUR-INSTANCE.clerk.accounts.dev
+# CLERK_JWKS_URL=https://YOUR-INSTANCE.clerk.accounts.dev/.well-known/jwks.json
+# CLERK_AUTHORIZED_PARTY=http://localhost:3000

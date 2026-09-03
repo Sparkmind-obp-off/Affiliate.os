@@ -4,13 +4,15 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP.**
+> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 06 IDENTITY/TENANCY FOUNDATION.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
 > that lifecycle in production with Neon PostgreSQL, migrations `0001`–`0002`, an
 > independently generated Cloudflare-managed `AUTH_SECRET`, and the workerd-native
-> PostgreSQL socket adapter. Every other module remains `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
+> PostgreSQL socket adapter. TASK 06 adds Clerk-authenticated internal accounts, workspaces,
+> owner memberships, transactional first-login provisioning, and explicit request tenancy context.
+> Full authorization/RBAC remains out of scope.
 
 ---
 
@@ -70,6 +72,17 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Accidental upload/transcript artifacts were removed from the current tree and ignored going forward
 - [ ] Historical credential exposure requires provider-side rotation/revocation; Git history rewrite is intentionally deferred to a separately authorized task
 
+## Completed — TASK 06 (identity, account & tenancy foundation)
+
+- [x] Clerk JWT verification behind an external identity boundary (RS256/JWKS)
+- [x] Internal account, identity, workspace, and owner-membership model
+- [x] Forward-only migration `0003` with uniqueness, foreign keys, checks, and tenant indexes
+- [x] Transactional, advisory-lock-protected first-login provisioning
+- [x] Explicit request-level account/workspace context and fail-closed status checks
+- [x] Current context/account/workspace/membership API endpoints
+- [x] Focused identity, suspension, consistency, API, and concurrency tests
+- [ ] Full authorization policy/RBAC, invitations, team management, and workspace administration are intentionally deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -93,7 +106,6 @@ smallest viable vertical and did not expand scope:
 
 - [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
-- [ ] Identity / authentication / tenancy logic (Module 15)
 - [ ] Policy & authorization enforcement (Module 16)
 - [ ] Full database schema — DOC 21 §180+ table DDL
 - [ ] TikTok / TikTok Shop connectors (Module 17)
@@ -117,6 +129,10 @@ smallest viable vertical and did not expand scope:
 | `POST` | `/api/v1/affiliate/opportunities`               | Evaluate and persist one opportunity; returns `201`.                   | bearer JWT |
 | `GET`  | `/api/v1/affiliate/opportunities?limit=N`       | List workspace opportunities; default 20, maximum 100.                 | bearer JWT |
 | `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | Retrieve one workspace opportunity by stable candidate reference.      | bearer JWT |
+| `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
+| `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
+| `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
+| `GET`  | `/api/v1/identity/membership/current`         | Return the current owner membership.                                    | Clerk bearer JWT |
 
 ¹ These routes read and write **no tenant-owned data**: every input arrives in
 the request and nothing is persisted, so there is no resource to own and no
@@ -193,19 +209,20 @@ Stack traces and internal causes are never present in a response body.
 - **Migrations:** forward-only, one transaction each, recorded in
   `public.schema_migrations` with a SHA-256 checksum. Editing an applied
   migration fails the runner instead of drifting silently.
-- **Tables:** migration `0002` adds `module_05.opportunities`, preserving validated
-  input, complete deterministic evaluation, decision metadata, lifecycle state,
-  model versions, workspace ownership, and timestamps.
+- **Tables:** migration `0002` adds `module_05.opportunities`. Migration `0003` adds
+  `module_15.accounts`, `identities`, `workspaces`, and `workspace_memberships`, with
+  a forward foreign key from opportunities to workspaces.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
-### Tenancy model (preserved, not yet implemented)
+### Tenancy model (Task 06 foundation)
 
 ```text
-ORGANIZATION → WORKSPACE → USER → MEMBERSHIP → ROLE
+CLERK IDENTITY → ACCOUNT → WORKSPACE MEMBERSHIP → WORKSPACE
 ```
 
-`user_id`-only authorization is forbidden as the sole mechanism (Task 01 §15).
+Every persisted tenant-owned query remains explicitly scoped by `workspace_id`.
+Task 06 resolves identity and tenancy only; full permission policy/RBAC is deferred.
 
 ---
 

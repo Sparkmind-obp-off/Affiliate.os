@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { successEnvelope } from '../../shared/http/envelope.js'
 import { opportunityRoutes } from '@modules/module-05-opportunity'
+import { identityRoutes } from '@modules/module-15-identity'
 import type { AppEnv } from '../types.js'
 
 /**
@@ -28,12 +29,10 @@ export interface ApiRootDescriptor {
 
 export const API_V1_MOUNTED_ROUTERS: ApiRootDescriptor['mounted_routers'] = [
   { path: '/api/v1/affiliate', owner_module: 'module-05-opportunity' },
+  { path: '/api/v1/identity', owner_module: 'module-15-identity' },
 ]
 
 export const API_V1_PENDING_ROUTERS: ApiRootDescriptor['pending_routers'] = [
-  { path: '/api/v1/auth', owner_module: 'module-15-identity' },
-  { path: '/api/v1/organizations', owner_module: 'module-15-identity' },
-  { path: '/api/v1/workspaces', owner_module: 'module-15-identity' },
   { path: '/api/v1/analytics', owner_module: 'module-09-performance' },
   { path: '/api/v1/billing', owner_module: 'module-25-billing' },
   { path: '/api/v1/ecosystem', owner_module: 'module-26-ecosystem' },
@@ -61,3 +60,6 @@ apiV1.get('/', (c) => {
 
 // Module 05 — Opportunity Engine & Scoring System (first MVP vertical).
 apiV1.route('/affiliate', opportunityRoutes)
+
+// Module 15 — external identity to internal account/workspace context.
+apiV1.route('/identity', identityRoutes)

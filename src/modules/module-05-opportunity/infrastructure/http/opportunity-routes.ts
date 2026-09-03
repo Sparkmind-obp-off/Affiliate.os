@@ -38,6 +38,13 @@ import { describeScoringModel } from '../../domain/model-descriptor.js'
 import { createPostgresOpportunityRepository } from '../persistence/postgres-client.js'
 import { MODULE_ID } from '../../module-meta.js'
 import { authenticateOpportunityRequest } from './opportunity-auth.js'
+import {
+  ClerkJwtAuthenticator,
+  createPostgresIdentityRepository,
+  resolveIdentityContext,
+  type ExternalIdentityAuthenticator,
+  type IdentityContextRepository,
+} from '@modules/module-15-identity'
 
 /** Read a JSON body without leaking parser internals (DOC 22 §223). */
 async function readJsonBody(raw: Request): Promise<unknown> {
@@ -135,7 +142,31 @@ function resolveRepository(c: Context<AppEnv>): OpportunityRepository {
 }
 
 async function authenticate(c: Context<AppEnv>) {
-  return authenticateOpportunityRequest(c.req.header('authorization'), c.get('config').authSecret)
+  const config = c.get('config')
+  if (config.clerkIssuer && config.clerkJwksUrl && config.databaseUrl) {
+    const injected = c.env as unknown as {
+      IDENTITY_AUTHENTICATOR?: ExternalIdentityAuthenticator
+      IDENTITY_REPOSITORY?: IdentityContextRepository
+    }
+    const authenticator = injected.IDENTITY_AUTHENTICATOR ?? new ClerkJwtAuthenticator({
+      issuer: config.clerkIssuer,
+      jwksUrl: config.clerkJwksUrl,
+      authorizedParty: config.clerkAuthorizedParty,
+    })
+    const repository = injected.IDENTITY_REPOSITORY ?? createPostgresIdentityRepository(
+      config.databaseUrl,
+      config.databaseSsl,
+    )
+    const identity = await authenticator.authenticate(c.req.header('authorization'))
+    const resolved = await resolveIdentityContext(identity, repository)
+    return {
+      userId: resolved.account.id,
+      organizationId: resolved.workspace.id,
+      workspaceId: resolved.workspace.id,
+    }
+  }
+  // Task 05 compatibility path for existing signed tenant claims and regression tests.
+  return authenticateOpportunityRequest(c.req.header('authorization'), config.authSecret)
 }
 
 opportunityRoutes.post('/opportunities', async (c) => {

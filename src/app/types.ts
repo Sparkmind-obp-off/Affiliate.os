@@ -17,6 +17,9 @@ export interface Bindings {
   DATABASE_URL?: string
   DATABASE_SSL?: string
   AUTH_SECRET?: string
+  CLERK_ISSUER?: string
+  CLERK_JWKS_URL?: string
+  CLERK_AUTHORIZED_PARTY?: string
 }
 
 export interface Variables {

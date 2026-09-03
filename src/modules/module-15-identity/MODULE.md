@@ -2,7 +2,7 @@
 
 **Title:** Identity, Account & Tenancy Architecture
 **Architecture reference:** DOC 15 + ADDENDUM
-**Status:** NOT_IMPLEMENTED — foundation only
+**Status:** FOUNDATION_IMPLEMENTED — Task 06
 
 ## Boundary rules
 
@@ -11,7 +11,7 @@
 - Cross-module communication happens through the public contract, an application
   service, an API call, or an event — never through internal file access.
 
-## Expected internal structure (created by the implementing task)
+## Implemented structure
 
 ```text
 module-15-identity/
@@ -20,3 +20,9 @@ module-15-identity/
 ├── infrastructure/   # repositories, adapters
 └── index.ts          # public contract
 ```
+
+## Scope
+
+Clerk authenticates the external subject. Affiliate OS transactionally resolves or provisions the internal account, workspace, and owner membership. Provider details remain isolated behind the authenticator port. Every tenant-owned operation requires an explicit workspace id.
+
+Full RBAC/policy, invitations, team administration, and workspace management UI are intentionally out of scope.

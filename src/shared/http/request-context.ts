@@ -38,6 +38,9 @@ export interface RequestContext {
   /** Present only when the caller supplied a valid Idempotency-Key. */
   idempotencyKey: string | null
   startedAt: number
+  authenticatedIdentity?: { provider: 'clerk'; subject: string }
+  accountId?: string
+  workspaceId?: string
 }
 
 export function createRequestContext(

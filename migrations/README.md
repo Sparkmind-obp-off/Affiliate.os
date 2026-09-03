@@ -50,6 +50,6 @@ Requires `DATABASE_URL` to point at a PostgreSQL instance.
 | --------------------------------- | -------------------------------- | ------ |
 | `0001_extensions_and_schemas.sql` | `pgcrypto` + module schemas | ready |
 | `0002_module_05_opportunity_lifecycle.sql` | minimum persistent Module 05 opportunity lifecycle | ready |
+| `0003_module_15_identity_tenancy.sql` | Task 06 account, identity, workspace, membership, and ownership constraints | ready |
 
-Migration `0002` is intentionally limited to the Task 04 vertical. Remaining
-DOC 21 table DDL is outside this task.
+Migration `0003` is forward-only and establishes the minimum tenant boundary. It does not implement policy/RBAC.
