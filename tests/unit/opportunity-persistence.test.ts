@@ -4,6 +4,7 @@ import {
   executeCreateOpportunity,
   executeGetOpportunity,
   type Clock,
+  type OpportunityStatus,
   type PostgresQueryExecutor,
 } from '@modules/module-05-opportunity'
 import { SPEC_CARD_CANDIDATE } from '../fixtures/opportunity-candidates.js'
@@ -12,10 +13,10 @@ const ISO = '2026-01-15T10:30:00.000Z'
 const WORKSPACE = '22222222-2222-4222-8222-222222222222'
 const clock: Clock = { now: () => new Date(ISO) }
 
-function row(evaluation: unknown, input: unknown = SPEC_CARD_CANDIDATE) {
+function row(evaluation: unknown, input: unknown = SPEC_CARD_CANDIDATE, status: OpportunityStatus = 'draft') {
   return {
     id: '11111111-1111-4111-8111-111111111111', workspace_id: WORKSPACE,
-    status: 'EVALUATED', evaluation_input: input, evaluation,
+    status, evaluation_input: input, evaluation,
     created_at: ISO, updated_at: ISO,
   }
 }
@@ -35,6 +36,23 @@ describe('PostgresOpportunityRepository', () => {
     )
     expect((returned as { evaluation: { score: { total: number } } }).evaluation.score.total).toBe(84)
     expect((returned as { evaluation: { decision: { decision: string } } }).evaluation.decision.decision).toBe('TEST_NOW')
+  })
+
+  it('uses a tenant-scoped compare-and-set update for atomic transitions', async () => {
+    const db = {
+      query: vi.fn(async (_sql: string) => ({
+        rows: [row({
+          candidate_ref: SPEC_CARD_CANDIDATE.candidate_ref,
+          product_name: SPEC_CARD_CANDIDATE.product_name,
+          evaluated_at: ISO,
+          score: {}, decision: {}, priority: {}, explanation: {},
+        }, SPEC_CARD_CANDIDATE, 'active')],
+      })),
+    } as unknown as PostgresQueryExecutor
+    const repository = new PostgresOpportunityRepository(db)
+    const transitioned = await repository.transition(WORKSPACE, '11111111-1111-4111-8111-111111111111', 'draft', 'active')
+    expect(transitioned?.status).toBe('active')
+    expect(db.query).toHaveBeenCalledWith(expect.stringMatching(/WHERE workspace_id = \$1 AND id = \$2 AND status = \$3/), [WORKSPACE, '11111111-1111-4111-8111-111111111111', 'draft', 'active'])
   })
 
   it('returns null and application maps it to RESOURCE_NOT_FOUND', async () => {

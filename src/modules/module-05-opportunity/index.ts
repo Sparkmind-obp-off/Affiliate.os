@@ -39,7 +39,9 @@ export {
   executeCreateOpportunity,
   executeGetOpportunity,
   executeListOpportunities,
+  executeTransitionOpportunity,
   parseOpportunityListLimit,
+  parseTransitionPayload,
   DEFAULT_OPPORTUNITY_LIST_LIMIT,
   MAX_OPPORTUNITY_LIST_LIMIT,
   opportunityModelVersions,
@@ -56,15 +58,20 @@ export {
 } from './application/schemas.js'
 
 export {
-  OPPORTUNITY_STATUSES,
   type Clock,
   type CreateOpportunityRecord,
   type OpportunityEvaluationRecorder,
   type OpportunityRepository,
-  type OpportunityStatus,
   type OpportunityTenantContext,
   type StoredOpportunity,
 } from './application/ports.js'
+
+export {
+  OPPORTUNITY_STATUSES,
+  canTransitionOpportunity,
+  isOpportunityStatus,
+  type OpportunityStatus,
+} from './domain/lifecycle.js'
 
 export {
   PostgresOpportunityRepository,

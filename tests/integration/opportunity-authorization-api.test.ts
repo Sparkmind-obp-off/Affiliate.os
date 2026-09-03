@@ -10,6 +10,7 @@ import type {
 import type {
   CreateOpportunityRecord,
   OpportunityRepository,
+  OpportunityStatus,
   StoredOpportunity,
 } from '@modules/module-05-opportunity'
 import { SPEC_CARD_CANDIDATE } from '../fixtures/opportunity-candidates.js'
@@ -33,7 +34,7 @@ class TenantRepository implements OpportunityRepository {
 
   async create(record: CreateOpportunityRecord): Promise<StoredOpportunity> {
     const stored: StoredOpportunity = {
-      id: crypto.randomUUID(), workspace_id: record.workspaceId, status: 'EVALUATED',
+      id: crypto.randomUUID(), workspace_id: record.workspaceId, status: 'draft',
       input: record.input, evaluation: record.evaluation,
       created_at: record.evaluation.evaluated_at, updated_at: record.evaluation.evaluated_at,
     }
@@ -45,8 +46,20 @@ class TenantRepository implements OpportunityRepository {
     return this.records.find((item) => item.workspace_id === workspaceId && item.input.candidate_ref === candidateRef) ?? null
   }
 
+  async findById(workspaceId: string, opportunityId: string): Promise<StoredOpportunity | null> {
+    return this.records.find((item) => item.workspace_id === workspaceId && item.id === opportunityId) ?? null
+  }
+
   async list(workspaceId: string, limit: number): Promise<StoredOpportunity[]> {
     return this.records.filter((item) => item.workspace_id === workspaceId).slice(0, limit)
+  }
+
+  async transition(workspaceId: string, opportunityId: string, from: OpportunityStatus, to: OpportunityStatus): Promise<StoredOpportunity | null> {
+    const record = this.records.find((item) => item.workspace_id === workspaceId && item.id === opportunityId && item.status === from)
+    if (!record) return null
+    record.status = to
+    record.updated_at = new Date().toISOString()
+    return record
   }
 }
 
@@ -119,7 +132,7 @@ describe('Task 07 opportunity authorization integration', () => {
       score: {}, decision: {}, priority: {}, explanation: {}, recommended_angle: {},
     } as unknown as StoredOpportunity['evaluation']
     repository.records.push({
-      id: 'foreign', workspace_id: WORKSPACE_B, status: 'EVALUATED',
+      id: '11111111-1111-4111-8111-111111111111', workspace_id: WORKSPACE_B, status: 'draft',
       input: SPEC_CARD_CANDIDATE, evaluation,
       created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
     })

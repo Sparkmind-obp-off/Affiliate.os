@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app/create-app.js'
 import { AppError } from '../../src/shared/errors/app-error.js'
-import type { CreateOpportunityRecord, OpportunityRepository, StoredOpportunity } from '@modules/module-05-opportunity'
+import type { CreateOpportunityRecord, OpportunityRepository, OpportunityStatus, StoredOpportunity } from '@modules/module-05-opportunity'
 import { SPEC_CARD_CANDIDATE } from '../fixtures/opportunity-candidates.js'
 
 const SECRET = 'test-only-secret-not-for-production'
@@ -13,11 +13,19 @@ class MemoryRepository implements OpportunityRepository {
   records: StoredOpportunity[] = []
   async create(record: CreateOpportunityRecord): Promise<StoredOpportunity> {
     if (this.records.some((r) => r.workspace_id === record.workspaceId && r.input.candidate_ref === record.input.candidate_ref)) throw AppError.conflict('An opportunity with this reference already exists')
-    const stored: StoredOpportunity = { id: crypto.randomUUID(), workspace_id: record.workspaceId, status: 'EVALUATED', input: record.input, evaluation: record.evaluation, created_at: record.evaluation.evaluated_at, updated_at: record.evaluation.evaluated_at }
+    const stored: StoredOpportunity = { id: crypto.randomUUID(), workspace_id: record.workspaceId, status: 'draft', input: record.input, evaluation: record.evaluation, created_at: record.evaluation.evaluated_at, updated_at: record.evaluation.evaluated_at }
     this.records.push(stored); return stored
   }
   async findByRef(workspaceId: string, ref: string) { return this.records.find((r) => r.workspace_id === workspaceId && r.input.candidate_ref === ref) ?? null }
+  async findById(workspaceId: string, id: string) { return this.records.find((r) => r.workspace_id === workspaceId && r.id === id) ?? null }
   async list(workspaceId: string, limit: number) { return this.records.filter((r) => r.workspace_id === workspaceId).slice(0, limit) }
+  async transition(workspaceId: string, id: string, from: OpportunityStatus, to: OpportunityStatus) {
+    const record = this.records.find((r) => r.workspace_id === workspaceId && r.id === id && r.status === from)
+    if (!record) return null
+    record.status = to
+    record.updated_at = new Date().toISOString()
+    return record
+  }
 }
 
 async function token(overrides: Record<string, unknown> = {}) {
@@ -43,7 +51,7 @@ describe('persistent opportunity HTTP lifecycle', () => {
 
     const get = await app.request('http://localhost/api/v1/affiliate/opportunities/OPP-00124', { headers: { authorization: `Bearer ${bearer}` } }, env)
     const fetched = (await get.json()) as { data: { opportunity: StoredOpportunity } }
-    expect(get.status).toBe(200); expect(fetched.data.opportunity.status).toBe('EVALUATED')
+    expect(get.status).toBe(200); expect(fetched.data.opportunity.status).toBe('draft')
     const list = await app.request('http://localhost/api/v1/affiliate/opportunities?limit=10', { headers: { authorization: `Bearer ${bearer}` } }, env)
     const listed = (await list.json()) as { data: { count: number } }
     expect(list.status).toBe(200); expect(listed.data.count).toBe(1)

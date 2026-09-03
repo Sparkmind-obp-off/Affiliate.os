@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 07 AUTHORIZATION/RBAC FOUNDATION.**
+> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 08 OPPORTUNITY WORKFLOW FOUNDATION.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -14,6 +14,8 @@ ecosystem commerce.
 > owner memberships, transactional first-login provisioning, and explicit request tenancy context.
 > TASK 07 adds deny-by-default `owner` / `admin` / `member` RBAC and enforces permissions
 > on the persisted opportunity lifecycle while retaining repository-level tenant filtering.
+> TASK 08 adds the deterministic `draft → active → completed` workflow, archival transitions,
+> atomic tenant-scoped state updates, and the authorized lifecycle API.
 
 ---
 
@@ -95,6 +97,16 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Focused role, suspension, privilege-escalation, tenant-isolation, API, and architecture tests
 - [ ] Invitations, membership administration endpoints, ownership transfer, and custom roles remain deferred
 
+## Completed — TASK 08 (opportunity workflow & lifecycle foundation)
+
+- [x] Central lifecycle vocabulary and transition policy: `draft`, `active`, `completed`, `archived`
+- [x] Atomic compare-and-set persistence scoped by both `workspace_id` and opportunity id
+- [x] `PATCH /api/v1/affiliate/opportunities/:id` protected by `opportunity.update`
+- [x] Strict status-only payload validation and safe conflict/not-found behavior
+- [x] Forward-only migration `0005` reconciling legacy `EVALUATED` rows to `draft`
+- [x] Focused valid/invalid transition, authorization, tenant-isolation, concurrency-conflict, and API tests
+- [ ] Workflow history/audit events and arbitrary/custom states remain intentionally deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -141,6 +153,7 @@ smallest viable vertical and did not expand scope:
 | `POST` | `/api/v1/affiliate/opportunities`               | Evaluate and persist one opportunity; returns `201`.                   | bearer JWT |
 | `GET`  | `/api/v1/affiliate/opportunities?limit=N`       | List workspace opportunities; default 20, maximum 100.                 | bearer JWT |
 | `GET`  | `/api/v1/affiliate/opportunities/:candidateRef` | Retrieve one workspace opportunity by stable candidate reference.      | bearer JWT |
+| `PATCH`| `/api/v1/affiliate/opportunities/:id`           | Transition lifecycle with `{ "status": "active" }`; returns `200`.    | Clerk bearer JWT + `opportunity.update` |
 | `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
@@ -225,7 +238,9 @@ Stack traces and internal causes are never present in a response body.
   `module_15.accounts`, `identities`, `workspaces`, and `workspace_memberships`, with
   a forward foreign key from opportunities to workspaces. Migration `0004` expands
   membership roles to `owner` / `admin` / `member`, adds the Module 16 permission catalog,
-  and indexes workspace-role-status lookups.
+  and indexes workspace-role-status lookups. Migration `0005` converts legacy opportunity
+  status markers to the Task 08 lifecycle, adds its CHECK constraint and tenant/status index,
+  and registers `opportunity.update`.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
@@ -361,4 +376,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 07 authorization, RBAC, and tenant access control)
+- **Last updated:** 2026-09-03 (TASK 08 opportunity workflow and lifecycle foundation)

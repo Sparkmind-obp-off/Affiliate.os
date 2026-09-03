@@ -1,6 +1,7 @@
 import { AppError } from '../../../../shared/errors/app-error.js'
 import { evaluateRequestSchema } from '../../application/schemas.js'
 import { opportunityModelVersions } from '../../application/opportunity-lifecycle.js'
+import { isOpportunityStatus, type OpportunityStatus } from '../../domain/lifecycle.js'
 import type {
   CreateOpportunityRecord,
   OpportunityRepository,
@@ -62,6 +63,15 @@ export class PostgresOpportunityRepository implements OpportunityRepository {
     return result.rows[0] ? mapOpportunityRow(result.rows[0]) : null
   }
 
+  async findById(workspaceId: string, opportunityId: string): Promise<StoredOpportunity | null> {
+    const result = await this.db.query<OpportunityRow>(
+      `SELECT ${SELECT_COLUMNS} FROM module_05.opportunities
+       WHERE workspace_id = $1 AND id = $2 LIMIT 1`,
+      [workspaceId, opportunityId],
+    )
+    return result.rows[0] ? mapOpportunityRow(result.rows[0]) : null
+  }
+
   async list(workspaceId: string, limit: number): Promise<StoredOpportunity[]> {
     const result = await this.db.query<OpportunityRow>(
       `SELECT ${SELECT_COLUMNS} FROM module_05.opportunities
@@ -70,18 +80,34 @@ export class PostgresOpportunityRepository implements OpportunityRepository {
     )
     return result.rows.map(mapOpportunityRow)
   }
+
+  async transition(
+    workspaceId: string,
+    opportunityId: string,
+    from: OpportunityStatus,
+    to: OpportunityStatus,
+  ): Promise<StoredOpportunity | null> {
+    const result = await this.db.query<OpportunityRow>(
+      `UPDATE module_05.opportunities
+       SET status = $4, updated_at = NOW()
+       WHERE workspace_id = $1 AND id = $2 AND status = $3
+       RETURNING ${SELECT_COLUMNS}`,
+      [workspaceId, opportunityId, from, to],
+    )
+    return result.rows[0] ? mapOpportunityRow(result.rows[0]) : null
+  }
 }
 
 export function mapOpportunityRow(row: OpportunityRow): StoredOpportunity {
   const parsedInput = evaluateRequestSchema.safeParse({ candidate: decodeJson(row.evaluation_input) })
   const evaluation = decodeJson(row.evaluation)
-  if (!parsedInput.success || !isEvaluation(evaluation) || row.status !== 'EVALUATED') {
+  if (!parsedInput.success || !isEvaluation(evaluation) || !isOpportunityStatus(row.status)) {
     throw AppError.internal('Stored opportunity data is invalid')
   }
   return {
     id: row.id,
     workspace_id: row.workspace_id,
-    status: 'EVALUATED',
+    status: row.status,
     input: parsedInput.data.candidate,
     evaluation,
     created_at: toIso(row.created_at),

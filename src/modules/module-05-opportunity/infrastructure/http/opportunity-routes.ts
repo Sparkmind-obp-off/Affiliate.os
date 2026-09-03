@@ -30,6 +30,7 @@ import {
   executeCreateOpportunity,
   executeGetOpportunity,
   executeListOpportunities,
+  executeTransitionOpportunity,
   parseOpportunityListLimit,
 } from '../../application/opportunity-lifecycle.js'
 import type { OpportunityRepository } from '../../application/ports.js'
@@ -203,6 +204,21 @@ opportunityRoutes.get('/opportunities', async (c) => {
 })
 
 const RESERVED_SUBPATHS = new Set(['evaluate', 'rank', 'scoring-model'])
+
+opportunityRoutes.patch('/opportunities/:id', async (c) => {
+  const ctx = c.get('ctx')
+  const tenant = await authenticate(c, 'opportunity.update')
+  const payload = await readJsonBody(c.req.raw)
+  const opportunity = await executeTransitionOpportunity(
+    c.req.param('id'),
+    payload,
+    tenant.workspaceId,
+    resolveRepository(c),
+  )
+  return c.json(
+    successEnvelope({ opportunity }, { requestId: ctx.requestId, correlationId: ctx.correlationId }),
+  )
+})
 
 opportunityRoutes.get('/opportunities/:candidateRef', async (c) => {
   const ref = c.req.param('candidateRef')

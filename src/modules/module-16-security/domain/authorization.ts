@@ -7,6 +7,7 @@ export const PERMISSIONS = [
   'member.manage',
   'opportunity.read',
   'opportunity.create',
+  'opportunity.update',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -44,11 +45,13 @@ const ROLE_PERMISSIONS = {
     'member.manage',
     'opportunity.read',
     'opportunity.create',
+    'opportunity.update',
   ],
   member: [
     'workspace.read',
     'opportunity.read',
     'opportunity.create',
+    'opportunity.update',
   ],
 } as const satisfies Record<string, readonly Permission[]>
 

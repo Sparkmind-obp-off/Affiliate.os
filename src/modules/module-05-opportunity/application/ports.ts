@@ -1,8 +1,6 @@
 import type { OpportunityEvaluation } from '../domain/evaluator.js'
+import type { OpportunityStatus } from '../domain/lifecycle.js'
 import type { OpportunityCandidate } from '../domain/signals.js'
-
-export const OPPORTUNITY_STATUSES = ['EVALUATED'] as const
-export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number]
 
 export interface OpportunityTenantContext {
   organizationId: string
@@ -30,7 +28,14 @@ export interface CreateOpportunityRecord {
 export interface OpportunityRepository {
   create(record: CreateOpportunityRecord): Promise<StoredOpportunity>
   findByRef(workspaceId: string, candidateRef: string): Promise<StoredOpportunity | null>
+  findById(workspaceId: string, opportunityId: string): Promise<StoredOpportunity | null>
   list(workspaceId: string, limit: number): Promise<StoredOpportunity[]>
+  transition(
+    workspaceId: string,
+    opportunityId: string,
+    from: OpportunityStatus,
+    to: OpportunityStatus,
+  ): Promise<StoredOpportunity | null>
 }
 
 /** Backward-compatible Task 03 recording seam for stateless evaluation callers. */

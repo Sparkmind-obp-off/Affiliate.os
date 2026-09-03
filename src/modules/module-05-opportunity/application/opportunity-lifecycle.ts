@@ -1,6 +1,11 @@
 import { AppError } from '../../../shared/errors/app-error.js'
 import { evaluateOpportunity } from '../domain/evaluator.js'
 import type { OpportunityCandidate } from '../domain/signals.js'
+import {
+  canTransitionOpportunity,
+  isOpportunityStatus,
+  type OpportunityStatus,
+} from '../domain/lifecycle.js'
 import { describeScoringModel } from '../domain/model-descriptor.js'
 import { parseEvaluateInput } from './evaluate-opportunity.js'
 import {
@@ -53,6 +58,45 @@ export async function executeGetOpportunity(
   }
 }
 
+export async function executeTransitionOpportunity(
+  opportunityId: string,
+  payload: unknown,
+  workspaceId: string,
+  repository: OpportunityRepository,
+): Promise<StoredOpportunity> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(opportunityId)) {
+    throw AppError.validation('Opportunity id is invalid', {
+      issues: [{ field: 'id', message: 'must be a UUID' }],
+    })
+  }
+  const status = parseTransitionPayload(payload)
+  try {
+    const current = await repository.findById(workspaceId, opportunityId)
+    if (!current) throw AppError.notFound('Opportunity not found')
+    if (!canTransitionOpportunity(current.status, status)) {
+      throw AppError.conflict('Opportunity transition is not allowed')
+    }
+    const transitioned = await repository.transition(workspaceId, opportunityId, current.status, status)
+    if (!transitioned) throw AppError.conflict('Opportunity state changed; retry with the current state')
+    return transitioned
+  } catch (error) {
+    if (error instanceof AppError) throw error
+    throw AppError.internal('Failed to transition the opportunity', error)
+  }
+}
+
+export function parseTransitionPayload(payload: unknown): OpportunityStatus {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw invalidTransitionPayload()
+  }
+  const keys = Object.keys(payload)
+  const status = (payload as Record<string, unknown>).status
+  if (keys.length !== 1 || keys[0] !== 'status' || !isOpportunityStatus(status)) {
+    throw invalidTransitionPayload()
+  }
+  return status
+}
+
 export function parseOpportunityListLimit(raw: string | undefined): number {
   if (raw === undefined) return DEFAULT_OPPORTUNITY_LIST_LIMIT
   if (!/^\d+$/.test(raw)) throw invalidLimit()
@@ -73,6 +117,12 @@ export async function executeListOpportunities(
   } catch (error) {
     throw AppError.internal('Failed to list opportunities', error)
   }
+}
+
+function invalidTransitionPayload(): AppError {
+  return AppError.validation('Opportunity transition payload is invalid', {
+    issues: [{ field: 'status', message: 'must be one of draft, active, completed, archived' }],
+  })
 }
 
 function invalidLimit(): AppError {

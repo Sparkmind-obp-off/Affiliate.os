@@ -52,8 +52,11 @@ Requires `DATABASE_URL` to point at a PostgreSQL instance.
 | `0002_module_05_opportunity_lifecycle.sql` | minimum persistent Module 05 opportunity lifecycle | ready |
 | `0003_module_15_identity_tenancy.sql` | Task 06 account, identity, workspace, membership, and ownership constraints | ready |
 | `0004_module_16_authorization_rbac.sql` | Task 07 role constraint, permission catalog, and authorization lookup index | ready |
+| `0005_module_05_opportunity_workflow.sql` | Task 08 lifecycle states, update permission, and tenant/status index | ready |
 
 Migration `0003` establishes the minimum tenant boundary. Migration `0004` preserves existing
 owner memberships, expands the allowed role vocabulary to `owner` / `admin` / `member`, and
 records only the permissions required by currently implemented workspace and opportunity flows.
 The deterministic role-permission matrix remains application policy in Module 16.
+Migration `0005` reconciles legacy `EVALUATED` rows to `draft`, constrains the lifecycle
+vocabulary, adds `opportunity.update`, and indexes tenant-scoped status queries.
