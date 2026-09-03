@@ -15,12 +15,14 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Module-owned logical schemas (strict data ownership, DOC 21 §2).
+CREATE SCHEMA IF NOT EXISTS module_05;  -- Opportunity Engine & Scoring System
 CREATE SCHEMA IF NOT EXISTS module_14;  -- Data & Event Infrastructure
 CREATE SCHEMA IF NOT EXISTS module_15;  -- Identity, Account & Tenancy
 CREATE SCHEMA IF NOT EXISTS module_16;  -- Security, Policy & Governance
 CREATE SCHEMA IF NOT EXISTS module_17;  -- Platform & Connector Abstraction
 CREATE SCHEMA IF NOT EXISTS module_19;  -- Attribution & Measurement
 
+COMMENT ON SCHEMA module_05 IS 'Module 05 — Opportunity Engine & Scoring System (owner)';
 COMMENT ON SCHEMA module_14 IS 'Module 14 — Data & Event Infrastructure (owner)';
 COMMENT ON SCHEMA module_15 IS 'Module 15 — Identity, Account & Tenancy (owner)';
 COMMENT ON SCHEMA module_16 IS 'Module 16 — Security, Policy & Governance (owner)';

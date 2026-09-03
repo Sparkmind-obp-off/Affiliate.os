@@ -7,7 +7,10 @@ ecosystem commerce.
 > **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
-> retrieve, and list workspace-owned opportunities. Every other module remains
+> retrieve, and list workspace-owned opportunities. TASK 05 activated a dedicated
+> Neon PostgreSQL production database and applied migrations `0001`–`0002`.
+> Production persistence verification remains blocked until a valid, independently
+> provisioned `AUTH_SECRET` is configured. Every other module remains
 > `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
 
 ---
@@ -70,7 +73,8 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Live PostgreSQL migration/production verification when credentials are available
+- [x] Live PostgreSQL migration against dedicated Neon production database
+- [ ] End-to-end production persistence verification (blocked on independently provisioned `AUTH_SECRET`)
 - [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
 - [ ] Identity / authentication / tenancy logic (Module 15)
@@ -308,4 +312,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-02 (TASK 04)
+- **Last updated:** 2026-09-03 (TASK 05 database activation; auth-dependent production verification blocked)

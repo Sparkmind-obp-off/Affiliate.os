@@ -231,7 +231,7 @@ describe('architecture: database policy', () => {
       'utf8',
     )
     expect(sql).toContain('CREATE EXTENSION IF NOT EXISTS pgcrypto')
-    for (const schema of ['module_14', 'module_15', 'module_16', 'module_17', 'module_19']) {
+    for (const schema of ['module_05', 'module_14', 'module_15', 'module_16', 'module_17', 'module_19']) {
       expect(sql).toContain(`CREATE SCHEMA IF NOT EXISTS ${schema}`)
     }
     // Task 01 boundary: schemas only, no tables yet.
