@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { resolveIdentityContext, type AuthenticatedIdentity, type IdentityContextRepository, type ResolvedIdentityContext } from '@modules/module-15-identity'
+import { describe, expect, it, vi } from 'vitest'
+import { PostgresIdentityContextRepository, resolveIdentityContext, type AuthenticatedIdentity, type IdentityContextRepository, type ResolvedIdentityContext } from '@modules/module-15-identity'
 
 const identity: AuthenticatedIdentity = { provider: 'clerk', subject: 'user_task06' }
 const context: ResolvedIdentityContext = {
@@ -38,5 +38,25 @@ describe('Task 06 identity and tenancy context', () => {
     expect(new Set(results.map((item) => item.account.id))).toEqual(new Set(['a']))
     expect(new Set(results.map((item) => item.workspace.id))).toEqual(new Set(['w']))
     expect(new Set(results.map((item) => item.membership.id))).toEqual(new Set(['m']))
+  })
+
+  it('fails closed instead of reprovisioning an identity whose membership is missing', async () => {
+    const statements: string[] = []
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        statements.push(sql)
+        if (sql.includes('FROM module_15.identities i')) return { rows: [] }
+        if (sql.includes('SELECT id FROM module_15.identities')) return { rows: [{ id: 'identity-existing' }] }
+        return { rows: [] }
+      }),
+      release: vi.fn(),
+    }
+    const repository = new PostgresIdentityContextRepository({
+      connect: async () => client,
+    } as never)
+
+    await expect(repository.resolveOrProvision(identity)).rejects.toMatchObject({ code: 'TENANT_ACCESS_DENIED' })
+    expect(statements.some((sql) => /INSERT INTO module_15\.accounts/i.test(sql))).toBe(false)
+    expect(statements).toContain('ROLLBACK')
   })
 })

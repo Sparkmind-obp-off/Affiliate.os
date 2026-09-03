@@ -2,7 +2,7 @@ export const IDENTITY_PROVIDER = 'clerk' as const
 export const ACCOUNT_STATUSES = ['active', 'suspended'] as const
 export const WORKSPACE_STATUSES = ['active', 'suspended'] as const
 export const MEMBERSHIP_STATUSES = ['active', 'suspended'] as const
-export const MEMBERSHIP_ROLES = ['owner'] as const
+export const MEMBERSHIP_ROLES = ['owner', 'admin', 'member'] as const
 
 export type IdentityProvider = typeof IDENTITY_PROVIDER
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number]

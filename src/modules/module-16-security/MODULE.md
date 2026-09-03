@@ -2,7 +2,7 @@
 
 **Title:** Security, Policy & Governance Engine
 **Architecture reference:** DOC 16 + 14A
-**Status:** NOT_IMPLEMENTED — foundation only
+**Status:** FOUNDATION_IMPLEMENTED — Task 07 authorization/RBAC boundary
 
 ## Boundary rules
 
@@ -11,12 +11,14 @@
 - Cross-module communication happens through the public contract, an application
   service, an API call, or an event — never through internal file access.
 
-## Expected internal structure (created by the implementing task)
+## Implemented Task 07 boundary
 
-```text
-module-16-security/
-├── domain/           # entities, value objects, domain services
-├── application/      # use cases, application services
-├── infrastructure/   # repositories, adapters
-└── index.ts          # public contract
-```
+- Deterministic, deny-by-default `authorize` decision service.
+- Minimal `owner` / `admin` / `member` role policy.
+- Atomic permissions for current workspace, membership, and opportunity capabilities.
+- Account, workspace, membership, role, permission, ownership, and resource-tenant checks.
+- Reusable `requirePermission` application boundary; route handlers do not interpret roles.
+
+The application policy is authoritative. Migration `0004` stores the permission catalog for
+integrity/discoverability and expands Module 15's membership-role constraint without changing
+existing owner memberships. No client-supplied role or permission is trusted.

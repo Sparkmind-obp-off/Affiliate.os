@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 06 IDENTITY/TENANCY FOUNDATION.**
+> **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP + TASK 07 AUTHORIZATION/RBAC FOUNDATION.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -12,7 +12,8 @@ ecosystem commerce.
 > independently generated Cloudflare-managed `AUTH_SECRET`, and the workerd-native
 > PostgreSQL socket adapter. TASK 06 adds Clerk-authenticated internal accounts, workspaces,
 > owner memberships, transactional first-login provisioning, and explicit request tenancy context.
-> Full authorization/RBAC remains out of scope.
+> TASK 07 adds deny-by-default `owner` / `admin` / `member` RBAC and enforces permissions
+> on the persisted opportunity lifecycle while retaining repository-level tenant filtering.
 
 ---
 
@@ -83,6 +84,17 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Focused identity, suspension, consistency, API, and concurrency tests
 - [ ] Full authorization policy/RBAC, invitations, team management, and workspace administration are intentionally deferred
 
+## Completed — TASK 07 (authorization, RBAC & tenant access control)
+
+- [x] Deterministic, reusable `authorize` / `requirePermission` policy boundary in Module 16
+- [x] Minimal `owner`, `admin`, and `member` roles with explicit atomic permissions
+- [x] Fail-closed account, workspace, membership, role, permission, ownership, and resource-tenant checks
+- [x] Permission enforcement on persisted opportunity create/read/list routes
+- [x] Repository-level `workspace_id` filtering retained as defense in depth
+- [x] Forward-only migration `0004` preserving all Task 06 owner memberships
+- [x] Focused role, suspension, privilege-escalation, tenant-isolation, API, and architecture tests
+- [ ] Invitations, membership administration endpoints, ownership transfer, and custom roles remain deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -106,7 +118,7 @@ smallest viable vertical and did not expand scope:
 
 - [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
-- [ ] Policy & authorization enforcement (Module 16)
+- [ ] Advanced/custom authorization policies beyond the Task 07 minimal RBAC matrix
 - [ ] Full database schema — DOC 21 §180+ table DDL
 - [ ] TikTok / TikTok Shop connectors (Module 17)
 - [ ] Duitku billing integration (DOC 25)
@@ -211,18 +223,22 @@ Stack traces and internal causes are never present in a response body.
   migration fails the runner instead of drifting silently.
 - **Tables:** migration `0002` adds `module_05.opportunities`. Migration `0003` adds
   `module_15.accounts`, `identities`, `workspaces`, and `workspace_memberships`, with
-  a forward foreign key from opportunities to workspaces.
+  a forward foreign key from opportunities to workspaces. Migration `0004` expands
+  membership roles to `owner` / `admin` / `member`, adds the Module 16 permission catalog,
+  and indexes workspace-role-status lookups.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
-### Tenancy model (Task 06 foundation)
+### Identity, tenancy, and authorization model
 
 ```text
-CLERK IDENTITY → ACCOUNT → WORKSPACE MEMBERSHIP → WORKSPACE
+CLERK IDENTITY → ACCOUNT → WORKSPACE → MEMBERSHIP → ROLE → PERMISSION → DECISION
 ```
 
 Every persisted tenant-owned query remains explicitly scoped by `workspace_id`.
-Task 06 resolves identity and tenancy only; full permission policy/RBAC is deferred.
+Module 16 denies by default when any account, workspace, membership, role, permission,
+ownership, or resource-tenant invariant fails. Roles and permissions are derived from the
+resolved server-side membership context; request payload overrides are ignored.
 
 ---
 
@@ -325,9 +341,9 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | Secure response headers        | Implemented                                        |
 | Trace-header injection defense | Implemented — malformed ids rejected               |
 | Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
-| Full identity ecosystem        | **PENDING** — Module 15 task                       |
-| Authorization / policy engine  | **PENDING** — Module 16 task                       |
-| Tenant isolation enforcement   | Implemented for Module 05 repository queries       |
+| External identity + tenancy    | Implemented — Clerk boundary + Module 15 context   |
+| Authorization / RBAC boundary  | Implemented — minimal Task 07 Module 16 policy      |
+| Tenant isolation enforcement   | Implemented — authorization + Module 05 queries     |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -345,4 +361,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 05 persistence hardening and security assurance)
+- **Last updated:** 2026-09-03 (TASK 07 authorization, RBAC, and tenant access control)

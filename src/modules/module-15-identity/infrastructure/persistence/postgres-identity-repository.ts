@@ -33,6 +33,14 @@ export class PostgresIdentityContextRepository implements IdentityContextReposit
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${identity.provider}:${identity.subject}`])
       let row = await findContext(client, identity)
       if (!row) {
+        const existingIdentity = await client.query<{ id: string }>(
+          `SELECT id FROM module_15.identities
+           WHERE provider = $1 AND provider_subject = $2 LIMIT 1`,
+          [identity.provider, identity.subject],
+        )
+        if (existingIdentity.rows[0]) {
+          throw AppError.tenantAccessDenied('Workspace membership is not available')
+        }
         const account = await client.query<{ id: string }>(
           `INSERT INTO module_15.accounts (display_name) VALUES ($1) RETURNING id`,
           ['Affiliate OS account'],
@@ -87,13 +95,13 @@ function isPgCode(error: unknown, code: string): boolean {
 }
 function iso(value: Date | string): string { return (value instanceof Date ? value : new Date(value)).toISOString() }
 function mapContext(row: ContextRow): ResolvedIdentityContext {
-  if (row.provider !== 'clerk' || !['active', 'suspended'].includes(row.account_status) || !['active', 'suspended'].includes(row.workspace_status) || !['active', 'suspended'].includes(row.membership_status) || row.membership_role !== 'owner') {
+  if (row.provider !== 'clerk' || !['active', 'suspended'].includes(row.account_status) || !['active', 'suspended'].includes(row.workspace_status) || !['active', 'suspended'].includes(row.membership_status) || !['owner', 'admin', 'member'].includes(row.membership_role)) {
     throw AppError.internal('Stored identity context is invalid')
   }
   return {
     authenticatedIdentity: { provider: 'clerk', subject: row.provider_subject },
     account: { id: row.account_id, displayName: row.display_name, status: row.account_status as 'active' | 'suspended', createdAt: iso(row.account_created_at), updatedAt: iso(row.account_updated_at) },
     workspace: { id: row.workspace_id, name: row.workspace_name, slug: row.workspace_slug, ownerAccountId: row.owner_account_id, status: row.workspace_status as 'active' | 'suspended', createdAt: iso(row.workspace_created_at), updatedAt: iso(row.workspace_updated_at) },
-    membership: { id: row.membership_id, workspaceId: row.workspace_id, accountId: row.account_id, role: 'owner', status: row.membership_status as 'active' | 'suspended', createdAt: iso(row.membership_created_at), updatedAt: iso(row.membership_updated_at) },
+    membership: { id: row.membership_id, workspaceId: row.workspace_id, accountId: row.account_id, role: row.membership_role as 'owner' | 'admin' | 'member', status: row.membership_status as 'active' | 'suspended', createdAt: iso(row.membership_created_at), updatedAt: iso(row.membership_updated_at) },
   }
 }

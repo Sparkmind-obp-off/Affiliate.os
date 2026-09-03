@@ -45,6 +45,7 @@ import {
   type ExternalIdentityAuthenticator,
   type IdentityContextRepository,
 } from '@modules/module-15-identity'
+import { requirePermission, type Permission } from '@modules/module-16-security'
 
 /** Read a JSON body without leaking parser internals (DOC 22 §223). */
 async function readJsonBody(raw: Request): Promise<unknown> {
@@ -141,7 +142,7 @@ function resolveRepository(c: Context<AppEnv>): OpportunityRepository {
   return createPostgresOpportunityRepository(config.databaseUrl, config.databaseSsl)
 }
 
-async function authenticate(c: Context<AppEnv>) {
+async function authenticate(c: Context<AppEnv>, permission: Permission) {
   const config = c.get('config')
   if (config.clerkIssuer && config.clerkJwksUrl && config.databaseUrl) {
     const injected = c.env as unknown as {
@@ -159,6 +160,12 @@ async function authenticate(c: Context<AppEnv>) {
     )
     const identity = await authenticator.authenticate(c.req.header('authorization'))
     const resolved = await resolveIdentityContext(identity, repository)
+    requirePermission({ context: resolved, permission })
+    Object.assign(c.get('ctx'), {
+      authenticatedIdentity: resolved.authenticatedIdentity,
+      accountId: resolved.account.id,
+      workspaceId: resolved.workspace.id,
+    })
     return {
       userId: resolved.account.id,
       organizationId: resolved.workspace.id,
@@ -171,7 +178,7 @@ async function authenticate(c: Context<AppEnv>) {
 
 opportunityRoutes.post('/opportunities', async (c) => {
   const ctx = c.get('ctx')
-  const tenant = await authenticate(c)
+  const tenant = await authenticate(c, 'opportunity.create')
   const repository = resolveRepository(c)
   const payload = await readJsonBody(c.req.raw)
   const opportunity = await executeCreateOpportunity(payload, tenant.workspaceId, { repository })
@@ -183,7 +190,7 @@ opportunityRoutes.post('/opportunities', async (c) => {
 
 opportunityRoutes.get('/opportunities', async (c) => {
   const ctx = c.get('ctx')
-  const tenant = await authenticate(c)
+  const tenant = await authenticate(c, 'opportunity.read')
   const repository = resolveRepository(c)
   const limit = parseOpportunityListLimit(c.req.query('limit'))
   const opportunities = await executeListOpportunities(tenant.workspaceId, limit, repository)
@@ -201,7 +208,7 @@ opportunityRoutes.get('/opportunities/:candidateRef', async (c) => {
   const ref = c.req.param('candidateRef')
   if (RESERVED_SUBPATHS.has(ref)) throw AppError.notFound('Endpoint not found')
   const ctx = c.get('ctx')
-  const tenant = await authenticate(c)
+  const tenant = await authenticate(c, 'opportunity.read')
   const opportunity = await executeGetOpportunity(ref, tenant.workspaceId, resolveRepository(c))
   return c.json(
     successEnvelope({ opportunity }, { requestId: ctx.requestId, correlationId: ctx.correlationId }),
