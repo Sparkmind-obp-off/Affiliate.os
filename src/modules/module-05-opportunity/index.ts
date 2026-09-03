@@ -79,6 +79,7 @@ export {
   type PostgresQueryExecutor,
   type QueryResult,
 } from './infrastructure/persistence/postgres-opportunity-repository.js'
+export { createPostgresOpportunityRepository } from './infrastructure/persistence/postgres-client.js'
 
 /** Domain contract — value objects and result shapes other modules may read. */
 export {

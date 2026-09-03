@@ -293,10 +293,12 @@ describe('module mount and unknown sub-routes', () => {
     expect(body.data.mounted_routers).toEqual([
       { path: '/api/v1/affiliate', owner_module: 'module-05-opportunity' },
       { path: '/api/v1/demand', owner_module: 'module-04-demand' },
+      { path: '/api/v1/creators', owner_module: 'module-06-creator-fit' },
       { path: '/api/v1/identity', owner_module: 'module-15-identity' },
     ])
     expect(body.data.pending_routers.map((r) => r.path)).not.toContain('/api/v1/affiliate')
     expect(body.data.pending_routers.map((r) => r.path)).not.toContain('/api/v1/demand')
+    expect(body.data.pending_routers.map((r) => r.path)).not.toContain('/api/v1/creators')
   })
 
   it('an unknown sub-route still returns the canonical RESOURCE_NOT_FOUND', async () => {

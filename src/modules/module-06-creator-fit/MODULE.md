@@ -2,21 +2,34 @@
 
 **Title:** Creator Fit & Personalization Engine
 **Architecture reference:** AFFILIATE OS — CREATOR FIT & PERSONALIZATION ENGINE v1.0
-**Status:** NOT_IMPLEMENTED — foundation only
+**Status:** FOUNDATION_IMPLEMENTED (Task 10)
+
+## Ownership
+
+This module owns workspace-scoped creator profiles, controlled capability data,
+and deterministic Creator + Opportunity fit evaluation. Module 05 remains the
+owner of opportunity scoring; this module consumes only its public persisted
+Opportunity contract.
+
+## Deterministic policy v1
+
+Eight independent dimensions total 100%: niche 15%, product category 15%,
+audience 15%, content format 15%, capability 15%, execution 10%, commerce 10%,
+and availability 5%. Known dimensions are normalized to a 0–100 fit score.
+Coverage below 60%, or fewer than four known dimensions, produces
+`INSUFFICIENT_DATA` rather than `NO_FIT`.
+
+Classification bands are `STRONG_FIT >= 85`, `GOOD_FIT >= 70`, `WEAK_FIT >= 50`,
+and `NO_FIT < 50`. Confidence is reported separately as evidence reliability ×
+data coverage and never changes the fit score. Every dimension emits a stable
+reason code as positive, negative, or missing evidence.
 
 ## Boundary rules
 
-- Other modules may import **only** from `@modules/module-06-creator-fit` (the `index.ts` public contract).
-- This module owns its own tables/schema. No other module may read or write them directly.
-- Cross-module communication happens through the public contract, an application
-  service, an API call, or an event — never through internal file access.
-
-## Expected internal structure (created by the implementing task)
-
-```text
-module-06-creator-fit/
-├── domain/           # entities, value objects, domain services
-├── application/      # use cases, application services
-├── infrastructure/   # repositories, adapters
-└── index.ts          # public contract
-```
+- Imports from other modules use only their public `index.ts` contract.
+- Creator persistence is owned by `module_06.creator_profiles`; every query is
+  constrained by `workspace_id`.
+- Module 15 supplies authenticated tenancy and Module 16 supplies deny-by-default
+  `creator.read` / `creator.create` authorization.
+- No LLM, provider connector, scraper, recommendation, assignment, or campaign
+  behavior exists in this foundation.

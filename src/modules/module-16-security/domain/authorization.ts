@@ -3,7 +3,7 @@ import type { ResolvedIdentityContext } from '@modules/module-15-identity'
 export const PERMISSIONS = [
   'workspace.read', 'workspace.manage', 'member.read', 'member.manage',
   'opportunity.read', 'opportunity.create', 'opportunity.update',
-  'demand.read', 'demand.create',
+  'demand.read', 'demand.create', 'creator.read', 'creator.create',
 ] as const
 export type Permission = (typeof PERMISSIONS)[number]
 export type AuthorizationEffect = 'ALLOW' | 'DENY'
@@ -14,8 +14,8 @@ export interface AuthorizationDecision { effect: AuthorizationEffect; reason: Au
 
 const ROLE_PERMISSIONS = {
   owner: PERMISSIONS,
-  admin: ['workspace.read','member.read','member.manage','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create'],
-  member: ['workspace.read','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create'],
+  admin: ['workspace.read','member.read','member.manage','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create'],
+  member: ['workspace.read','opportunity.read','opportunity.create','opportunity.update','demand.read','demand.create','creator.read','creator.create'],
 } as const satisfies Record<string, readonly Permission[]>
 export type AuthorizationRole = keyof typeof ROLE_PERMISSIONS
 const deny = (reason: Exclude<AuthorizationReason, 'authorized'>): AuthorizationDecision => ({ effect: 'DENY', reason })

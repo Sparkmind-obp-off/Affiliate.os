@@ -4,7 +4,7 @@ Modular SaaS Operating System for affiliate intelligence, content operations,
 performance optimization, revenue intelligence, automation, billing, and
 ecosystem commerce.
 
-> **Current state: FOUNDATION + TASK 09 DEMAND DISCOVERY FOUNDATION + PERSISTENT MODULE 05 MVP.**
+> **Current state: FOUNDATION + TASK 10 CREATOR FIT FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
 > retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
@@ -18,6 +18,8 @@ ecosystem commerce.
 > atomic tenant-scoped state updates, and the authorized lifecycle API.
 > TASK 09 establishes the upstream, evidence-first Demand Discovery foundation with deterministic
 > normalization/scoring, tenant-scoped persistence, duplicate protection, and authorized APIs.
+> TASK 10 adds workspace-owned creator profiles, controlled capability evidence, and an explainable,
+> deterministic Creator + Opportunity fit boundary without changing Module 05 scoring semantics.
 
 ---
 
@@ -121,6 +123,18 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Domain, validation, duplicate, persistence, authorization, API, and tenant-isolation tests
 - [ ] Provider connectors, automated discovery, AI-only inference, and automatic Opportunity creation remain deferred
 
+## Completed — TASK 10 (creator fit & matching foundation)
+
+- [x] Workspace-owned Creator Profile domain with controlled platform, niche, audience, format, capability, availability, commerce, and evidence vocabularies
+- [x] Explicit opportunity-side matching criteria; product names are never used for hidden inference
+- [x] Deterministic eight-dimension Creator Fit policy with documented weights and stable policy version
+- [x] Distinct `STRONG_FIT`, `GOOD_FIT`, `WEAK_FIT`, `NO_FIT`, and `INSUFFICIENT_DATA` classifications
+- [x] Separate fit score, confidence score, data coverage, positive/negative factors, and missing signals
+- [x] Workspace-scoped create/get/list persistence and tenant-scoped Creator + Opportunity evaluation
+- [x] Module 15 tenancy plus Module 16 `creator.read` / `creator.create` authorization reuse
+- [x] Forward-only migration `0007` and authorized `/api/v1/creators` APIs
+- [ ] Provider ingestion, creator discovery, AI matching, recommendation, assignment, campaigns, and fit-result persistence remain deferred
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -142,7 +156,7 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [ ] Creator fit, content, distribution, performance, revenue engines
+- [ ] Content, distribution, performance, and revenue engines; advanced creator personalization/recommendation
 - [ ] Advanced/custom authorization policies beyond the Task 07 minimal RBAC matrix
 - [ ] Full database schema — DOC 21 §180+ table DDL
 - [ ] TikTok / TikTok Shop connectors (Module 17)
@@ -170,6 +184,10 @@ smallest viable vertical and did not expand scope:
 | `POST` | `/api/v1/demand/signals`                        | Normalize, score, fingerprint, and persist one evidence-backed signal. | Clerk bearer JWT + `demand.create` |
 | `GET`  | `/api/v1/demand/signals?limit=N`                | List workspace demand signals; default 20, maximum 100.                 | Clerk bearer JWT + `demand.read` |
 | `GET`  | `/api/v1/demand/signals/:id`                    | Retrieve one workspace-owned demand signal by UUID.                     | Clerk bearer JWT + `demand.read` |
+| `POST` | `/api/v1/creators`                              | Create one validated workspace-owned creator profile.                   | Clerk bearer JWT + `creator.create` |
+| `GET`  | `/api/v1/creators?limit=N`                      | List workspace creator profiles; default 20, maximum 100.                | Clerk bearer JWT + `creator.read` |
+| `GET`  | `/api/v1/creators/:id`                          | Retrieve one workspace-owned creator profile by UUID.                    | Clerk bearer JWT + `creator.read` |
+| `POST` | `/api/v1/creators/:id/fit`                      | Evaluate deterministic fit against a tenant-owned opportunity and explicit criteria. | Clerk bearer JWT + `creator.read` + `opportunity.read` |
 | `GET`  | `/api/v1/identity/context`                    | Resolve/provision current identity, account, workspace, and membership. | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/account/me`                 | Return the current internal account.                                    | Clerk bearer JWT |
 | `GET`  | `/api/v1/identity/workspace/current`          | Return the current workspace tenant.                                    | Clerk bearer JWT |
@@ -258,7 +276,9 @@ Stack traces and internal causes are never present in a response body.
   status markers to the Task 08 lifecycle, adds its CHECK constraint and tenant/status index,
   and registers `opportunity.update`. Migration `0006` adds `module_04.demand_signals`, evidence
   provenance, bounded deterministic score/status fields, per-workspace fingerprint uniqueness,
-  tenant indexes, and the `demand.read` / `demand.create` permission catalog entries.
+  tenant indexes, and the `demand.read` / `demand.create` permission catalog entries. Migration
+  `0007` creates `module_06.creator_profiles`, controlled evidence fields, per-workspace reference
+  uniqueness, tenant indexes, and `creator.read` / `creator.create` permission entries.
 - **Runtime:** the PostgreSQL adapter is wired only when `DATABASE_URL` is present;
   unavailable configuration fails closed and is never replaced by D1/SQLite.
 
@@ -286,6 +306,7 @@ src/
 ├── modules/                 # 18 locked modules, each with a public contract
 │   ├── module-04-demand/        # IMPLEMENTED (TASK 09)
 │   ├── module-05-opportunity/   # IMPLEMENTED (TASK 03–08)
+│   ├── module-06-creator-fit/   # FOUNDATION IMPLEMENTED (TASK 10)
 │   │   ├── domain/          # scoring, decision, priority, angles, explanation
 │   │   ├── application/     # use cases, schemas, ports
 │   │   ├── infrastructure/  # http adapter
@@ -368,7 +389,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | ------------------------------ | -------------------------------------------------- |
 | Secret hygiene                 | Enforced — gitignore + secret-scanning test        |
 | Config validation              | Implemented — fails closed on invalid config       |
-| Input validation (Modules 04/05)| Implemented — strict schemas, `422` + field details |
+| Input validation (Modules 04/05/06)| Implemented — strict schemas, `422` + field details |
 | Fail-closed unimplemented data | Implemented — `501`, never a fake empty collection |
 | Secret redaction in logs       | Implemented — structural, not caller-dependent     |
 | No stack traces in responses   | Implemented                                        |
@@ -377,7 +398,7 @@ independently generated `AUTH_SECRET` of at least 32 characters. Provider creden
 | Persistent-route authentication| Implemented — HS256, required expiry, UUID tenant claims |
 | External identity + tenancy    | Implemented — Clerk boundary + Module 15 context   |
 | Authorization / RBAC boundary  | Implemented — minimal Task 07 Module 16 policy      |
-| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05 queries |
+| Tenant isolation enforcement   | Implemented — authorization + Modules 04/05/06 queries |
 | Rate limiting                  | **PENDING**                                        |
 | Audit log persistence          | **PENDING**                                        |
 
@@ -395,4 +416,4 @@ implemented, because fake security is worse than none.
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 09 demand discovery foundation)
+- **Last updated:** 2026-09-03 (TASK 10 creator fit & matching foundation)
