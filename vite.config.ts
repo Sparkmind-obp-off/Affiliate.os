@@ -11,6 +11,10 @@ export default defineConfig({
     pages({ entry: 'src/index.ts' }),
   ],
   resolve: {
+    // `pg-cloudflare` exposes its real TCP socket adapter only under the
+    // `workerd` export condition. Without this condition Vite selects the
+    // package's intentionally empty fallback and production persistence fails.
+    conditions: ['workerd', 'worker', 'browser', 'module', 'development|production'],
     alias: {
       '@shared': path.resolve(__dirname, 'src/shared'),
       '@modules': path.resolve(__dirname, 'src/modules'),
@@ -19,5 +23,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    // Workerd provides this module at runtime; bundling it is neither possible
+    // nor desirable.
+    rollupOptions: {
+      external: ['cloudflare:sockets'],
+    },
   },
 })

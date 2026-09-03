@@ -7,11 +7,10 @@ ecosystem commerce.
 > **Current state: FOUNDATION + PERSISTENT MODULE 05 MVP.**
 > Tasks 01–03 established the foundation and deterministic Opportunity Engine.
 > TASK 04 adds its minimum PostgreSQL persistence lifecycle: evaluate, persist,
-> retrieve, and list workspace-owned opportunities. TASK 05 activated a dedicated
-> Neon PostgreSQL production database and applied migrations `0001`–`0002`.
-> Production persistence verification remains blocked until a valid, independently
-> provisioned `AUTH_SECRET` is configured. Every other module remains
-> `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
+> retrieve, and list workspace-owned opportunities. TASK 05 activates and verifies
+> that lifecycle in production with Neon PostgreSQL, migrations `0001`–`0002`, an
+> independently generated Cloudflare-managed `AUTH_SECRET`, and the workerd-native
+> PostgreSQL socket adapter. Every other module remains `MODULE_STATUS = 'NOT_IMPLEMENTED'`.
 
 ---
 
@@ -52,6 +51,15 @@ conflict is recorded in the conflict register rather than silently resolved.
 - [x] Fail-closed behavior when PostgreSQL or auth configuration is unavailable
 - [x] TASK 04 plan in [`docs/tasks/task-04-persistence-lifecycle-plan.md`](docs/tasks/task-04-persistence-lifecycle-plan.md)
 
+## Completed — TASK 05 (production persistence activation)
+
+- [x] Dedicated Neon PostgreSQL production database with migrations `0001`–`0002`
+- [x] Encrypted Cloudflare production secrets for database, SSL, and authentication
+- [x] Workerd package-export resolution for the production PostgreSQL TCP adapter
+- [x] Authenticated create, read, list, duplicate protection, and tenant isolation verified in production
+- [x] Production test record confirmed directly in PostgreSQL and safely removed
+- [x] Task 03 deterministic regression preserved: **84 / STRONG / TEST_NOW / R12_TEST_NOW**
+
 ## Completed — TASK 01/02 (foundation)
 
 - [x] Project foundation (`package.json`, TypeScript strict config, Vite, Wrangler)
@@ -73,14 +81,11 @@ conflict is recorded in the conflict register rather than silently resolved.
 Deliberately deferred; each belongs to its own task. TASK 03 stayed inside the
 smallest viable vertical and did not expand scope:
 
-- [x] Live PostgreSQL migration against dedicated Neon production database
-- [ ] End-to-end production persistence verification (blocked on independently provisioned `AUTH_SECRET`)
 - [ ] Demand discovery (Module 04) — signals are request input for now
 - [ ] Creator fit, content, distribution, performance, revenue engines
 - [ ] Identity / authentication / tenancy logic (Module 15)
 - [ ] Policy & authorization enforcement (Module 16)
 - [ ] Full database schema — DOC 21 §180+ table DDL
-- [ ] Database connectivity from the Worker (see CONFLICT-01)
 - [ ] TikTok / TikTok Shop connectors (Module 17)
 - [ ] Duitku billing integration (DOC 25)
 - [ ] Ecosystem commerce (DOC 26)
@@ -174,7 +179,7 @@ Stack traces and internal causes are never present in a response body.
   forbidden as production persistence and are blocked by both configuration
   validation and an architecture test.
 - **Schema ownership:** one database, module-owned logical schemas
-  (`module_14`, `module_15`, `module_16`, `module_17`, `module_19`) — DOC 21 §2.
+  (`module_05`, `module_14`, `module_15`, `module_16`, `module_17`, `module_19`) — DOC 21 §2.
 - **Migrations:** forward-only, one transaction each, recorded in
   `public.schema_migrations` with a SHA-256 checksum. Editing an applied
   migration fails the runner instead of drifting silently.
@@ -305,11 +310,11 @@ implemented, because fake security is worse than none.
 
 ## Deployment
 
-- **Platform:** Cloudflare Pages, via Git integration (Task 01 §28/§29).
-  Direct-upload lock-in is deliberately avoided.
+- **Platform:** Cloudflare Pages, deployed through the existing BYOK project with
+  explicit Git commit metadata for deployment traceability.
 - **Repository:** https://github.com/Sparkmind-obp-off/Affiliate.os
 - **Cloudflare Pages project:** `affiliate-os`
 - **Production URL:** https://affiliate-os.pages.dev
 - **Status:** ✅ Active
 - **Tech stack:** Hono + TypeScript + Zod + Vitest + Wrangler
-- **Last updated:** 2026-09-03 (TASK 05 database activation; auth-dependent production verification blocked)
+- **Last updated:** 2026-09-03 (TASK 05 production persistence activation and verification)

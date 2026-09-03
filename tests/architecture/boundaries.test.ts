@@ -134,6 +134,14 @@ describe('architecture: module boundaries', () => {
   })
 })
 
+describe('architecture: Cloudflare runtime build', () => {
+  it('resolves workerd-specific package exports for PostgreSQL TCP support', async () => {
+    const viteConfig = await readFile(path.join(ROOT, 'vite.config.ts'), 'utf8')
+    expect(viteConfig).toMatch(/conditions:\s*\[[^\]]*['"]workerd['"]/)
+    expect(viteConfig).toMatch(/external:\s*\[[^\]]*['"]cloudflare:sockets['"]/)
+  })
+})
+
 describe('architecture: forbidden dependencies', () => {
   it('does not depend on a forbidden database driver or premature infrastructure', async () => {
     const pkg = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'))
@@ -195,7 +203,16 @@ describe('architecture: secret hygiene', () => {
 
   it('gitignores every secret-bearing file', async () => {
     const gitignore = await readFile(path.join(ROOT, '.gitignore'), 'utf8')
-    for (const entry of ['.env', '.dev.vars', '*.pem', '*.key', 'node_modules/']) {
+    for (const entry of [
+      '.env',
+      '.dev.vars',
+      '*.pem',
+      '*.key',
+      '*credential*.txt',
+      '*api-key*.txt',
+      '*api.key*.txt',
+      'node_modules/',
+    ]) {
       expect(gitignore, `.gitignore missing "${entry}"`).toContain(entry)
     }
   })

@@ -28,6 +28,9 @@ id_rsa*
 id_ed25519*
 secrets.json
 credentials.json
+*credential*.txt
+*api-key*.txt
+*api.key*.txt
 service-account*.json
 .npmrc
 .netrc
