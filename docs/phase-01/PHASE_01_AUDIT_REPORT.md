@@ -1,194 +1,185 @@
 # Phase 01 — Affiliate OS Repository Audit Report
 
-**Status:** IN PROGRESS — evidence collection baseline
-**Repository:** `Sparkmind-obp-off/Affiliate.os`
-**Branch:** `main`
+**Status:** COMPLETE — evidence-backed audit baseline  
+**Repository:** `Sparkmind-obp-off/Affiliate.os`  
+**Branch:** `main`  
+**Audit date:** 2026-09-05  
 **Parent architecture:** AI Revenue OS
-**Audit phase:** Phase 01 — Existing Affiliate OS Audit
 
-## 1. Purpose
+## Executive conclusion
 
-This document is the canonical Phase 01 audit record for the existing Affiliate OS implementation.
+Affiliate OS has a substantial real implementation and **must not be rewritten wholesale**. The repository contains a Cloudflare/Workers + Hono application shell, PostgreSQL migrations, tenant-aware persistence, Clerk/JWKS identity, RBAC, deterministic Demand/Opportunity/Creator Fit/Content Opportunity/Content Generation capabilities, architecture tests, integration tests and CI. The README records Tasks 01–12 and the persistent Module 05 lifecycle as implemented. fileciteturn51file0
 
-The objective is to determine what already exists, what is reliable, what conflicts with the AI Revenue OS architecture, what is missing for the Affiliate Money Loop, and what should happen next.
+The dominant Phase 1 finding is downstream: Affiliate OS is **not yet a complete Affiliate Money Loop**. The API currently mounts Demand, Opportunity, Creator Fit, Content Opportunity, Content Generation and Identity; analytics, billing and ecosystem are explicitly pending. fileciteturn34file0
 
-**Phase 01 is an audit and classification phase. It is not a rewrite phase.**
+**Disposition:** KEEP the proven foundation → resolve/harden runtime and financial-truth boundaries → implement the smallest missing affiliate revenue chain → activate optimization/automation only after authoritative revenue data exists.
 
-No existing implementation should be deleted, replaced, or broadly refactored solely because it does not match the target architecture. Every change must be supported by repository evidence and the classification contract below.
+## 1. Repository / runtime audit
 
-## 2. Classification Contract
+- `package.json` confirms TypeScript, Hono, PostgreSQL `pg`, Zod, Vite, Wrangler and Vitest, with typecheck/lint/test/build/migration commands. fileciteturn33file0
+- `src/app/create-app.ts` is a clean composition root: secure headers, observability, errors, CORS, health and API routing; business logic is kept outside it. fileciteturn35file0
+- `src/index.ts` preserves the canonical not-found handler across the Pages wrapper boundary. fileciteturn37file0
 
-Every relevant existing component MUST be classified as exactly one primary status:
+**Classification: KEEP.** No evidence justifies replacing the application shell.
 
-- `KEEP` — compatible and usable with no material change.
-- `REFACTOR` — valuable but requires targeted correction.
-- `MOVE_TO_SHARED_CORE` — generic capability suitable for AI Revenue OS shared architecture, subject to shared-core rules.
-- `AFFILIATE_SPECIFIC` — intentionally specific to Affiliate OS.
-- `REMOVE` — obsolete, duplicate, unsafe, or architecturally invalid and approved for removal.
-- `MISSING` — required capability not present.
-- `BLOCKED` — intended capability exists conceptually but cannot currently be verified or completed because of a concrete blocker.
-- `DEFERRED` — intentionally outside the current implementation priority.
+## 2. Module status
 
-No component should be classified from filenames alone. Classification must be based on implementation, contracts, tests, schema, configuration, and actual integration behavior where available.
+| Area | Status | Finding |
+|---|---|---|
+| Demand | KEEP / AFFILIATE-SPECIFIC | Evidence-first deterministic demand foundation exists. |
+| Opportunity | KEEP / AFFILIATE-SPECIFIC | Deterministic evaluation, persistence and lifecycle exist. |
+| Creator Fit | KEEP / AFFILIATE-SPECIFIC | Deterministic matching foundation exists. |
+| Content Opportunity | KEEP / AFFILIATE-SPECIFIC | Deterministic content strategy foundation exists. |
+| Content Generation | KEEP / AFFILIATE-SPECIFIC | Provider-independent generation boundary exists. |
+| Identity/Tenancy | KEEP | Clerk/JWKS + internal tenant context exists. |
+| Security/RBAC | KEEP | Deny-by-default authorization exists. |
+| Distribution | MISSING / DEFERRED | No completed real publishing path in inspected API surface. |
+| Attribution | MISSING | No completed executable click→conversion attribution path. |
+| Conversion | MISSING | No completed revenue conversion recording path. |
+| Commission | MISSING | No completed commission recording path. |
+| Revenue | MISSING | No completed authoritative revenue ledger path. |
+| Performance | MISSING | Analytics router is still pending. |
+| Billing/Ecosystem | DEFERRED | Not required for first reliable money loop. |
+| Queue/Object Storage | DEFERRED | Documented future infrastructure. |
+| AI providers | KEEP boundary / DEFER adapters | AI remains behind a provider-independent port. |
 
-## 3. Repository Evidence Baseline
+The detailed matrix is in [`MODULE_STATUS_MATRIX.md`](MODULE_STATUS_MATRIX.md).
 
-The repository exists and is writable on the `main` branch.
+## 3. API surface audit
 
-The current repository tree contains, among other assets:
+**Present:** `/affiliate`, `/demand`, `/creators`, `/content-opportunities`, `/content-generations`, `/identity`.  
+**Pending:** `/analytics`, `/billing`, `/ecosystem`. fileciteturn34file0
 
-- `README.md`
-- `.env.example`
-- `.dev.vars.example`
-- CI documentation/workflow material
-- `docs/ARCHITECTURE-CONFLICTS.md`
-- `docs/EXTERNAL_STACK_MASTER_INVENTORY.md`
-- `docs/specifications/`
-- Affiliate demand, opportunity, creator-fit, content, distribution, experimentation, recommendation, automation, data/event, identity, security, connector, observability, attribution/measurement, database, and system-architecture specifications.
-- PostgreSQL DDL and identity-role correction specifications.
-- A packaged ZIP artifact currently stored in the repository.
+The Opportunity HTTP adapter demonstrates the desired pattern: parse → validate → application service → canonical envelope, with authentication and permission checks on persisted routes. fileciteturn46file0
 
-This inventory is an initial evidence observation, not a final implementation assessment.
+**Finding:** API architecture is healthy, but the revenue-core surface is absent.
 
-## 4. Required Audit Scope
+## 4. Database / schema audit
 
-The Phase 01 audit MUST inspect at minimum:
+Migrations `0001`–`0009` exist for base schemas, Opportunity, Identity/Tenancy, RBAC, workflow, Demand, Creator Fit, Content Opportunity and Content Generation. fileciteturn41file0
 
-1. Repository structure and source code.
-2. Runtime and deployment configuration.
-3. Existing modules and their boundaries.
-4. Existing API routes and contracts.
-5. Database schema, migrations, DDL, indexes, constraints, and monetary types.
-6. Identity, tenant isolation, and RBAC.
-7. Opportunity, demand, creator-fit, content, distribution, performance, revenue, experimentation, recommendation, automation, data, connector, and security capabilities.
-8. Event definitions and event persistence.
-9. Idempotency and duplicate-event handling.
-10. Test coverage and test reliability.
-11. CI/CD and production-readiness evidence.
-12. External services and environment-variable requirements.
-13. Architecture conflicts already documented by the repository.
-14. AI boundaries versus deterministic business logic.
-15. Orchestration boundaries versus domain logic.
+The existing Opportunity repository is a good pattern to preserve: parameterized PostgreSQL queries, `workspace_id` scoping, deterministic unique-conflict handling and invalid-stored-data checks. fileciteturn43file0
 
-## 5. Canonical Revenue Target
+**Gaps:** revenue/commission/conversion/attribution tables and idempotency contracts are not yet an end-to-end financial source of truth; new financial tables must enforce exact monetary precision and explicit currency.
 
-The audit MUST evaluate the repository against this smallest reliable Affiliate Money Loop:
+The architecture register explicitly records PostgreSQL-vs-Workers connectivity and live PostgreSQL verification as unresolved environment gates. fileciteturn40file0
+
+## 5. Security & tenancy audit
+
+**Classification: KEEP + targeted hardening.**
+
+Production configuration validates PostgreSQL, TLS and independently generated auth secrets; diagnostics fail closed. fileciteturn38file0
+
+The Opportunity route supports Clerk/JWKS authentication and internal identity/RBAC when configured, while retaining the legacy signed-tenant compatibility path. fileciteturn46file0 The legacy verifier checks HS256 signatures, expiry, optional `nbf`, and UUID-form tenant claims. fileciteturn45file0
+
+**Debt:** retire the legacy auth compatibility path after the supported production identity path is fully established; explicitly enforce the intended Clerk audience/authorized-party policy.
+
+## 6. AI boundary audit
+
+**Classification: KEEP.** Content Generation uses a provider-independent boundary and fails closed when a secure adapter is unavailable; concrete AI adapters remain deferred. fileciteturn51file0
+
+AI may research, generate, analyze, prioritize and recommend. AI must never be authoritative for payment, commission, revenue, authorization, tenant ownership, security or deterministic attribution.
+
+## 7. Automation boundary audit
+
+**Classification: DEFER SCALE.** Make/queues/workflows may orchestrate approved actions, but domain rules must remain inside Affiliate OS. Commission/revenue logic must not be moved into prompts or orchestration layers.
+
+Redis-compatible queue and S3-compatible storage remain documented future infrastructure. fileciteturn40file0
+
+## 8. Testing / CI audit
+
+The repository has architecture tests, module-boundary tests, unit tests and integration/API tests for the implemented foundation. fileciteturn48file0
+
+CI runs install, typecheck, lint, unit, architecture, integration/contract tests, build and secret-file checks. The dependency audit is currently advisory because the workflow uses `npm audit --audit-level=critical || true`. fileciteturn49file0
+
+**Hardening action:** make dependency policy explicit and eventually fail CI on the selected severity threshold.
+
+## 9. Architecture conflict disposition
+
+Keep the existing conflict register authoritative. Current material conflicts/gates are:
+
+- PostgreSQL vs Cloudflare Workers runtime — OPEN / verification-dependent.
+- Redis queue + S3 storage vs Workers execution model — DEFERRED.
+- Canonical monorepo layout vs single Cloudflare project — RESOLVED through documented mapping.
+- Module 08 content generation vs future distribution numbering — documented; ownership remains separate.
+- Live PostgreSQL verification — environment gate.
+
+The repository already records these honestly rather than silently changing the locked architecture. fileciteturn40file0
+
+## 10. Revenue-core mapping
+
+Target loop:
 
 `Discover → Validate → Select → Create → Distribute → Track → Convert → Commission → Revenue → Measure → Next Action`
 
-The audit MUST specifically determine whether each stage is:
+| Stage | Result |
+|---|---|
+| Discover | PRESENT |
+| Validate | PRESENT |
+| Select | PARTIAL |
+| Create | PRESENT |
+| Distribute | MISSING |
+| Track | MISSING |
+| Convert | MISSING |
+| Commission | MISSING |
+| Revenue | MISSING |
+| Measure | MISSING |
+| Next Action | DEFERRED until revenue truth exists |
 
-- implemented and verified;
-- implemented but incomplete;
-- contract-only/stubbed;
-- blocked by infrastructure or external dependencies; or
-- missing.
+See [`REVENUE_LOOP_GAP_ANALYSIS.md`](REVENUE_LOOP_GAP_ANALYSIS.md).
 
-## 6. Financial Truth Requirements
+## 11. Technical debt / priority
 
-Revenue-related capabilities must be treated as business truth, not AI-generated truth.
+| ID | Severity | Finding | Action |
+|---|---|---|---|
+| TD-01 | P0/P1 | Conversion/commission/revenue execution absent | Phase 2 |
+| TD-02 | P0/P1 | Attribution execution absent | Phase 2 |
+| TD-03 | P1 | Real distribution path absent | Minimal Phase 2 boundary |
+| TD-04 | P1 | Live PostgreSQL/Worker verification gate | Verify before production gate |
+| TD-05 | P2 | Legacy auth compatibility path | Retirement plan |
+| TD-06 | P2 | CI dependency audit non-blocking | Harden CI |
+| TD-07 | P2 | Queue/storage absent | Defer until required |
+| TD-08 | P3 | Concrete AI adapters absent | Add after deterministic contracts |
 
-The audit must verify:
+## 12. Shared-core boundary
 
-- deterministic attribution;
-- deterministic commission calculation or commission recording;
-- auditable conversion lineage;
-- exact monetary precision;
-- explicit currency;
-- tenant-safe access;
-- idempotent processing for conversion, commission, payment, revenue, and webhook events where applicable;
-- traceability from revenue back through commission, conversion, click, affiliate link, content/campaign, opportunity, and demand.
+No immediate `MOVE_TO_SHARED_CORE` action is justified.
 
-AI may recommend or analyze revenue actions, but AI must not become the source of truth for financial state, authorization, security, or payment facts.
+Affiliate-specific semantics must remain in Affiliate OS: affiliate programs, products/offers, links, attribution, click/conversion/commission relationships and affiliate revenue reporting.
 
-## 7. Required Audit Deliverables
+Only extract generic primitives after stable semantics, clear ownership and credible reuse by at least two verticals.
 
-The completed Phase 01 audit MUST produce or update the following evidence-backed sections/documents:
+## 13. Phase 02 recommendation
 
-- Repository Audit Report
-- Module Status Matrix
-- Revenue-Core Mapping Matrix
-- Affiliate-Specific Boundary Matrix
-- API Surface Audit
-- Database/Schema Audit
-- Integration Audit
-- Security & Tenancy Audit
-- AI Boundary Audit
-- Automation Boundary Audit
-- Technical Debt Register
-- Architecture Conflict Register Update
-- Revenue Loop Gap Analysis
-- Phase 02 Implementation Plan
+The justified order is:
 
-Each finding must identify the relevant repository path(s), implementation evidence, classification, impact, and recommended action.
+1. Revenue domain foundation.
+2. Affiliate Product/Offer mapping.
+3. Attribution foundation.
+4. Minimal distribution boundary.
+5. Click tracking.
+6. Conversion tracking.
+7. Commission tracking.
+8. Revenue recording.
+9. Minimal performance measurement.
+10. End-to-end integration.
+11. Unit/integration/API/security/E2E tests.
+12. Production readiness verification.
 
-## 8. Phase 02 Gate
+See [`PHASE_02_IMPLEMENTATION_PLAN.md`](PHASE_02_IMPLEMENTATION_PLAN.md).
 
-Phase 02 MUST NOT begin merely because the audit document exists.
+## 14. Explicit non-goals
 
-Phase 02 may begin only after:
+Do not use Phase 2 to build a full CRM, full social scheduler, payment gateway, payout engine, mobile app, autonomous campaign manager, large analytics dashboard, or premature multi-vertical abstraction.
 
-1. the repository has been inspected;
-2. the money-loop gaps are explicitly identified;
-3. P0 security/integrity blockers are understood;
-4. the database and API truth is verified;
-5. architecture conflicts have an explicit disposition;
-6. the smallest implementation sequence is approved;
-7. no required audit deliverable remains materially unaddressed.
+Do not replace PostgreSQL with D1/KV/SQLite. Do not create a second auth/RBAC system. Do not make AI the source of financial truth. Do not move core domain logic into Make/queues.
 
-## 9. Explicit Non-Goals During Phase 01
+## 15. Phase 01 gate
 
-Do not use the audit phase to introduce:
+**PASS — Phase 01 audit is complete enough to authorize a controlled Phase 02 implementation.**
 
-- a full social scheduler;
-- a full CRM;
-- a full email-marketing platform;
-- a full payment gateway;
-- a payout engine;
-- a multi-platform affiliate suite;
-- an autonomous campaign manager;
-- a large analytics dashboard;
-- a mobile application;
-- premature multi-vertical abstraction;
-- unnecessary AI-agent complexity.
+This PASS means the existing implementation has been inspected sufficiently to establish what is stable, what is missing, what is blocked and what should happen next. It does **not** mean Affiliate OS is production-complete.
 
-## 10. Shared-Core Rule
+**Phase 2 prerequisite:** verify the actual target PostgreSQL/Worker runtime and lock attribution, idempotency, money and currency contracts before financial implementation.
 
-A capability may be proposed for movement into AI Revenue OS shared core only when its semantics are generic, ownership is clear, the contract is stable, and there is credible reuse by at least two verticals.
-
-Affiliate-specific behavior must remain in Affiliate OS.
-
-## 11. QIMA / Ecosystem Boundary
-
-QIMA is not to be physically merged into this repository merely because it belongs to the broader AI Revenue ecosystem.
-
-The intended hierarchy is:
-
-`AI Revenue Ecosystem → AI Revenue OS → Verticals / Products → QIMA`
-
-AI Revenue OS owns cross-vertical architecture and governance.
-Affiliate OS owns affiliate-specific implementation.
-A future QIMA repository should own QIMA-specific product/domain implementation while conforming to shared AI Revenue OS contracts where appropriate.
-
-## 12. Current Phase Status
-
-**Phase 01 status: AUDIT BASELINE ESTABLISHED — FULL EVIDENCE AUDIT REQUIRED BEFORE IMPLEMENTATION.**
-
-The repository tree confirms substantial existing specifications and architecture material, but the presence of specifications does not by itself prove that the corresponding runtime implementation is complete or production-ready.
-
-The next audit action is to inspect source implementation, package/runtime configuration, API routes, schema/migrations, tests, CI, and integration boundaries and populate the required matrices with concrete evidence.
-
-## 13. Definition of Done
-
-Phase 01 is complete only when the final audit can answer, with repository evidence:
-
-1. What already works?
-2. What exists only as specification or stub?
-3. What is broken or architecturally conflicting?
-4. What is missing for the Affiliate Money Loop?
-5. What is Affiliate-specific?
-6. What should move to shared core, and why?
-7. What must not be changed yet?
-8. What exact Phase 02 implementation sequence is justified by the evidence?
-
-Until these questions are answered, implementation changes must not be treated as Phase 02 completion.
+**Phase 3 remains BLOCKED** until the complete money loop is proven with traceable IDs, tenant isolation, deterministic attribution and duplicate-event protection.
